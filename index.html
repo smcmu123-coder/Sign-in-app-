@@ -342,6 +342,7 @@ const DEFAULTS = {
   learn: true,       // add confirmed scans to the person's templates
   debug: false,
   adminPin: '',       // Admin passkey, created on first open
+  lastEmpNo: 0,       // highest employee number issued, so IDs are never reused
   jobId: '', jobName: '', jobNumber: '',   // current job, shown on the kiosk
   localJobs: [],
   deviceId: '',
@@ -462,6 +463,8 @@ function tickClock() {
 /* ---------------- record helpers ---------------- */
 const METHOD = { face: 'Face', manual: 'Manual', auto: 'Auto (23:59)' };
 const wcKey = k => { const d = parseKey(k); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dKey(d); };
+const nameOf = r => { const e = r && empById(r.empId); return e ? fullName(e) : (r?.empFirst ? `${r.empFirst} ${r.empLast}` : (r?.empId || 'Unknown')); };
+const partsOf = r => { const e = empById(r.empId); return e ? { first: e.first, last: e.last } : { first: r.empFirst || '', last: r.empLast || '' }; };
 const jobFields = () => ({ jobId: S.settings.jobId || '', jobName: S.settings.jobName || '', jobNumber: S.settings.jobNumber || '' });
 
 /* ---------------- message screen ---------------- */
@@ -906,6 +909,7 @@ async function runEnrol(first, last) {
       S.employees.push(emp);
     }
     await DB.put('employees', emp);
+    try { await saveSettings(); } catch {}
     await showMsg({ icon: '✓', ok: true, title: existing ? 'Face re-registered' : `${fullName(emp)} added`, text: `Employee ID ${emp.id}. You can now sign in with your face.`, timeout: 4500 });
   } finally {
     $('#poseDots').classList.add('hidden');
@@ -916,7 +920,9 @@ async function runEnrol(first, last) {
 }
 
 function nextEmpId() {
-  const max = S.employees.reduce((m, e) => Math.max(m, parseInt(String(e.id).replace(/\D/g, ''), 10) || 0), 0);
+  const num = id => parseInt(String(id).replace(/\D/g, ''), 10) || 0;
+  const max = Math.max(S.settings.lastEmpNo || 0, ...S.employees.map(e => num(e.id)), ...S.records.map(r => num(r.empId)), 0);
+  S.settings.lastEmpNo = max + 1;
   return 'E' + String(max + 1).padStart(3, '0');
 }
 
@@ -1008,7 +1014,7 @@ function recordsHTML() {
     const weekRecs = recs.filter(r => wcKey(r.date) === view.wc);
     const days = [...Array(7)].map((_, i) => addDaysK(view.wc, i));
     const people = [...new Set(weekRecs.map(r => r.empId))]
-      .map(id => ({ id, name: empById(id) ? fullName(empById(id)) : id }))
+      .map(id => ({ id, name: nameOf(weekRecs.find(r => r.empId === id)) }))
       .sort((a, b) => a.name.localeCompare(b.name));
     view._people = people;
     const autos = weekRecs.filter(r => r.outSrc === 'auto').length;
@@ -1044,7 +1050,7 @@ function recordsHTML() {
       <button class="btn primary" id="jChange">${cur ? 'Change job' : 'Set job'}</button>
     </div>
     <div class="bar-title">On site now (${onsite.length})</div>
-    ${onsite.length ? `<div class="chips">${onsite.map(r => { const e = empById(r.empId); return `<div class="chip"><b>${esc(e ? fullName(e) : r.empId)}</b> · in ${hm(r.in)}</div>`; }).join('')}</div>` : '<div class="empty">No one is signed in.</div>'}
+    ${onsite.length ? `<div class="chips">${onsite.map(r => { return `<div class="chip"><b>${esc(nameOf(r))}</b> · in ${hm(r.in)}</div>`; }).join('')}</div>` : '<div class="empty">No one is signed in.</div>'}
     <div class="bar-title">Sign-ins by week commencing</div>
     ${jobChips.length > 1 ? `<div class="chips" style="margin-bottom:10px">${jobChips.join('')}</div>` : ''}
     ${grid}`;
@@ -1123,7 +1129,7 @@ async function editEntry(rec, preset = {}) {
   if (!rec && !emps.length) { toast('Register an employee first'); return; }
   const pick = rec ? rec.empId : preset.empId;
   const html = `
-    ${rec ? `<p style="margin-top:0;font-size:17px"><b>${esc(empById(rec.empId) ? fullName(empById(rec.empId)) : rec.empId)}</b> · ${esc(rec.empId)}</p>`
+    ${rec ? `<p style="margin-top:0;font-size:17px"><b>${esc(nameOf(rec))}</b> · ${esc(rec.empId)}</p>`
       : `<div class="field"><label>Employee</label><select name="emp">${emps.map(e => `<option value="${esc(e.id)}" ${e.id === pick ? 'selected' : ''}>${esc(fullName(e))} (${esc(e.id)})</option>`).join('')}</select></div>`}
     <div class="field"><label>Date</label><input type="date" name="date" value="${rec ? rec.date : preset.date || dKey(new Date())}"></div>
     <div class="row">
@@ -1182,7 +1188,7 @@ function exportWeekCsv() {
   const uk = k => k.split('-').reverse().join('/');
   const head = ['Week commencing', 'Date', 'Day', 'Project number', 'Job', 'Employee ID', 'First name', 'Last name', 'Sign in', 'Sign out', 'Sign in method', 'Sign out method', 'Edited'];
   const lines = [head.join(',')].concat(recs.map(r => {
-    const e = empById(r.empId) || { first: '', last: '' };
+    const e = partsOf(r);
     return [uk(view.wc), uk(r.date), parseKey(r.date).toLocaleDateString('en-GB', { weekday: 'long' }), job?.number || '', job?.name || '', r.empId, e.first, e.last,
       hm(r.in), r.out ? hm(r.out) : 'Still on site', METHOD[r.inSrc] || r.inSrc, r.out ? METHOD[r.outSrc] || r.outSrc : '', r.edits?.length ? 'Yes' : ''].map(cell).join(',');
   }));
@@ -1207,6 +1213,7 @@ function staffHTML() {
           <button class="btn sm" data-ename="${e.id}">Edit name</button>
           <button class="btn sm" data-reenrol="${e.id}">${e.active ? 'Re-register face' : 'Reactivate'}</button>
           ${e.active ? `<button class="btn sm" data-deact="${e.id}">Deactivate</button>` : ''}
+          <button class="btn sm dark" data-del="${e.id}">Delete</button>
         </td></tr>`; }).join('')}</tbody>
     </table></div>` : '<div class="empty">No employees yet.</div>'}`;
 }
@@ -1260,6 +1267,7 @@ function bindAdmin() {
     document.querySelectorAll('[data-ename]').forEach(b => b.onclick = () => editName(empById(b.dataset.ename)));
     document.querySelectorAll('[data-reenrol]').forEach(b => b.onclick = () => openAdd('admin', empById(b.dataset.reenrol)));
     document.querySelectorAll('[data-deact]').forEach(b => b.onclick = () => deactivate(empById(b.dataset.deact)));
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteEmployee(empById(b.dataset.del)));
     return;
   }
   const st = S.settings;
@@ -1307,6 +1315,36 @@ async function editName(emp) {
   if (r.value !== 'save') return;
   emp.first = titleCase(r.data.first); emp.last = titleCase(r.data.last);
   await DB.put('employees', emp); renderAdmin(); toast('Saved');
+}
+
+async function deleteEmployee(emp) {
+  if (!emp) return;
+  const recs = S.records.filter(r => r.empId === emp.id);
+  const r = await modal({
+    title: `Delete ${fullName(emp)}?`,
+    html: `<p style="margin-top:0;font-size:16px;line-height:1.5">This permanently removes ${esc(fullName(emp))} (${esc(emp.id)}) and their face templates from this iPad. It can’t be undone.</p>
+      ${recs.length ? `<p style="font-size:16px;line-height:1.5;margin-bottom:0">They have <b>${recs.length}</b> sign-in record${recs.length === 1 ? '' : 's'}. Keep them for your timesheets, or delete them too?</p>` : ''}`,
+    buttons: recs.length
+      ? [{ label: 'Cancel', value: 'cancel' }, { label: 'Delete with sign-ins', value: 'all', cls: 'dark' }, { label: 'Delete, keep sign-ins', value: 'keep', cls: 'primary' }]
+      : [{ label: 'Cancel', value: 'cancel' }, { label: 'Delete', value: 'keep', cls: 'dark' }],
+  });
+  if (r.value === 'cancel') return;
+  if (r.value === 'all') {
+    if (!(await confirmBox('Delete their sign-ins too?', `${recs.length} sign-in record${recs.length === 1 ? '' : 's'} for ${fullName(emp)} will be permanently deleted.`, 'Delete', 'dark'))) return;
+    for (const rec of recs) await DB.del('records', rec.id);
+    S.records = S.records.filter(x => x.empId !== emp.id);
+  } else {
+    for (const rec of recs) {
+      rec.empFirst = emp.first; rec.empLast = emp.last;
+      if (!rec.out) { rec.out = new Date().toISOString(); rec.outSrc = 'manual'; }
+      await DB.put('records', rec);
+    }
+  }
+  S.settings.lastEmpNo = Math.max(S.settings.lastEmpNo || 0, parseInt(String(emp.id).replace(/\D/g, ''), 10) || 0);
+  await saveSettings();
+  S.employees = S.employees.filter(e => e.id !== emp.id);
+  await DB.del('employees', emp.id);
+  renderAdmin(); renderHome(); toast(`${fullName(emp)} deleted`);
 }
 
 async function deactivate(emp) {
