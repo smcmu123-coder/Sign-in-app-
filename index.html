@@ -1,0 +1,1230 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Sign In">
+<meta name="theme-color" content="#1F5A2D">
+<title>CGC Site Sign In</title>
+<style>
+:root{
+  --green:#1F5A2D; --green-dark:#174522; --tint:#EDF2EE; --tint2:#D8DFDA;
+  --border:#CBD3CD; --blue:#2E6DA4; --ink:#1A1A1A; --muted:#5F6B63;
+  --bg:#F6F8F6; --white:#FFFFFF; --charcoal:#2B2F2C;
+  --radius:18px;
+  font-family:-apple-system,"Segoe UI",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:none}
+body{-webkit-user-select:none;user-select:none}
+input,select,textarea{-webkit-user-select:text;user-select:text;font:inherit}
+button{font:inherit;cursor:pointer;border:0}
+.hidden{display:none!important}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+
+.screen{display:none;position:fixed;inset:0;flex-direction:column;
+  padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.screen.active{display:flex}
+
+/* ---------- Home ---------- */
+#home{background:var(--white)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 8px 14px;border-bottom:2px solid var(--green)}
+.brand{display:flex;align-items:center;gap:16px;min-width:0}
+.brand img{height:64px;max-width:220px;object-fit:contain}
+.company{font-weight:700;font-size:20px;color:var(--green)}
+.appname{font-size:15px;color:var(--muted)}
+.onsite{background:var(--tint);border:1px solid var(--border);border-radius:999px;padding:10px 18px;font-size:17px;color:var(--green);font-weight:600;white-space:nowrap}
+.clockwrap{text-align:center;margin:3vh 0 2vh}
+.clock{font-size:clamp(64px,11vw,120px);font-weight:700;letter-spacing:-2px;font-variant-numeric:tabular-nums;line-height:1}
+.date{font-size:clamp(18px,2.4vw,26px);color:var(--muted);margin-top:8px}
+.bigbtns{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:8px;max-height:52vh}
+.big{border-radius:28px;font-size:clamp(34px,5.5vw,60px);font-weight:800;letter-spacing:2px;color:var(--white);
+  box-shadow:0 8px 0 rgba(0,0,0,.18);transition:transform .08s ease, box-shadow .08s ease;min-height:180px}
+.big:active{transform:translateY(6px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.big.in{background:var(--green)}
+.big.out{background:var(--charcoal)}
+.big small{display:block;font-size:18px;font-weight:500;letter-spacing:0;opacity:.85;margin-top:8px}
+.engine{text-align:center;color:var(--muted);font-size:14px;min-height:20px;margin-top:10px}
+.foot{display:flex;justify-content:space-between;align-items:center;padding-top:12px}
+.add{background:var(--tint);color:var(--green);border:2px solid var(--green);border-radius:14px;padding:14px 26px;font-size:20px;font-weight:700}
+.link{background:none;color:var(--muted);font-size:16px;padding:14px 10px;text-decoration:underline}
+@media (orientation:portrait){
+  .bigbtns{grid-template-columns:1fr;max-height:none}
+}
+
+/* ---------- Scan ---------- */
+#scan{background:#111;color:var(--white)}
+.scanhead{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 12px}
+.scantitle{font-size:24px;font-weight:700}
+.ghost{background:rgba(255,255,255,.12);color:var(--white);border-radius:12px;padding:12px 22px;font-size:18px;font-weight:600}
+.camwrap{position:relative;flex:1;border-radius:24px;overflow:hidden;background:#000}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.oval{position:absolute;left:50%;top:48%;width:min(46vh,62vw);aspect-ratio:3/4;transform:translate(-50%,-50%);
+  border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.5);border:5px solid rgba(255,255,255,.75);transition:border-color .2s}
+.oval.good{border-color:#7FBF8E}
+.bar{height:8px;background:rgba(255,255,255,.15);border-radius:99px;margin:14px 6px 0;overflow:hidden}
+.bar>div{height:100%;width:0;background:#7FBF8E;transition:width .15s}
+.scanmsg{text-align:center;font-size:clamp(24px,3.4vw,34px);font-weight:700;margin-top:14px;min-height:42px}
+.scanhint{text-align:center;font-size:18px;opacity:.8;min-height:26px;margin-top:4px}
+.dots{display:flex;justify-content:center;gap:10px;margin-top:10px}
+.dots span{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.25)}
+.dots span.done{background:#7FBF8E}
+.dots span.now{background:var(--white)}
+.debug{font:13px ui-monospace,Menlo,monospace;opacity:.75;text-align:center;margin-top:6px;white-space:pre-wrap}
+
+/* ---------- Message ---------- */
+#msg{background:var(--white);align-items:center;justify-content:center}
+.msgcard{text-align:center;max-width:760px;width:100%;padding:24px}
+.msgicon{width:120px;height:120px;border-radius:50%;margin:0 auto 26px;display:flex;align-items:center;justify-content:center;
+  font-size:64px;font-weight:800;color:var(--white);background:var(--charcoal)}
+.msgicon.ok{background:var(--green)}
+.msgtitle{font-size:clamp(32px,4.6vw,52px);font-weight:800;line-height:1.15}
+.msgtext{font-size:clamp(20px,2.6vw,26px);color:var(--muted);margin-top:14px;line-height:1.4}
+.msgbtns{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:36px}
+.msgbtns button{min-width:240px;padding:24px 30px;border-radius:20px;font-size:26px;font-weight:700;background:var(--tint);color:var(--ink);border:2px solid var(--border)}
+.msgbtns button.primary{background:var(--green);color:var(--white);border-color:var(--green)}
+
+/* ---------- Add new ---------- */
+#add{background:var(--white);align-items:center;justify-content:center}
+.formcard{width:100%;max-width:640px}
+.formcard h1{font-size:34px;margin:0 0 6px;color:var(--ink)}
+.formcard p.lead{color:var(--muted);font-size:17px;margin:0 0 24px}
+.field{margin-bottom:18px}
+.field label{display:block;font-weight:700;color:var(--green);margin-bottom:8px;font-size:17px}
+.field input,.field select{width:100%;font-size:24px;padding:16px 18px;border:2px solid var(--border);border-radius:14px;background:var(--white);color:var(--ink)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--green)}
+.notice{background:var(--tint);border:1px solid var(--border);border-radius:14px;padding:16px 18px;font-size:16px;line-height:1.5;color:var(--ink);margin:6px 0 24px}
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.btn{border-radius:12px;padding:14px 22px;font-size:18px;font-weight:700;background:var(--tint);color:var(--ink);border:2px solid var(--border)}
+.btn.primary{background:var(--green);color:var(--white);border-color:var(--green)}
+.btn.sm{padding:8px 14px;font-size:15px;border-width:1px}
+.btn.dark{background:var(--charcoal);color:var(--white);border-color:var(--charcoal)}
+.err{color:var(--ink);font-weight:700;min-height:22px;margin-top:6px}
+
+/* ---------- Admin ---------- */
+#admin{background:var(--bg);padding-top:max(10px,env(safe-area-inset-top))}
+.adminhead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 4px 10px;border-bottom:2px solid var(--green);flex-wrap:wrap}
+.adminhead h1{margin:0;font-size:24px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:16px;font-weight:600;color:var(--ink)}
+.tab.on{background:var(--green);border-color:var(--green);color:var(--white)}
+.adminbody{flex:1;overflow:auto;padding:16px 4px 40px;-webkit-overflow-scrolling:touch}
+.bar-title{background:var(--green);color:var(--white);border-radius:10px;padding:10px 16px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:15px;margin:18px 0 12px}
+.bar-title:first-child{margin-top:0}
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.filters .field{margin:0}
+.filters .field input,.filters .field select{font-size:16px;padding:10px 12px;border-width:1px;border-radius:10px}
+.filters .field label{font-size:14px;margin-bottom:4px}
+table{width:100%;border-collapse:collapse;background:var(--white);font-size:15px}
+th,td{border:.5pt solid var(--border);padding:9px 10px;text-align:left;vertical-align:middle}
+th{background:var(--tint);font-weight:700;color:var(--ink);white-space:nowrap}
+td.v{color:var(--blue);font-variant-numeric:tabular-nums}
+tbody tr:nth-child(even) td{background:#FAFCFA}
+.tag{display:inline-block;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;border:1px solid var(--border);background:var(--tint);color:var(--green);margin:1px 2px 1px 0}
+.tag.dark{background:var(--charcoal);color:var(--white);border-color:var(--charcoal)}
+.tag.grey{background:var(--white);color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:15px}
+.chip b{color:var(--green)}
+.empty{color:var(--muted);padding:14px 2px}
+.tablewrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.setcard{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px}
+.setcard h3{margin:0 0 4px;font-size:16px;color:var(--green)}
+.setcard p{margin:0 0 10px;color:var(--muted);font-size:14px;line-height:1.4}
+.setcard input[type=text],.setcard input[type=password],.setcard input[type=number]{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+.setcard input[type=range]{width:100%}
+.toggle{display:flex;align-items:center;gap:10px;font-size:16px}
+.toggle input{width:24px;height:24px;accent-color:var(--green)}
+.valline{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:700}
+
+/* ---------- Modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modalcard{background:var(--white);border-radius:18px;width:100%;max-width:560px;padding:22px;max-height:90vh;overflow:auto}
+.modalcard h2{margin:0 0 12px;font-size:22px}
+.modalcard .field input,.modalcard .field select{font-size:18px;padding:12px 14px}
+#modalBtns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:var(--charcoal);color:var(--white);padding:14px 22px;border-radius:12px;font-size:17px;z-index:60}
+</style>
+</head>
+<body>
+
+<!-- ================= HOME ================= -->
+<section id="home" class="screen active">
+  <header class="top">
+    <div class="brand">
+      <img id="logo" alt="" class="hidden">
+      <div>
+        <div id="companyName" class="company"></div>
+        <div id="appName" class="appname"></div>
+      </div>
+    </div>
+    <div class="onsite"><span id="onsiteCount">0</span> on site</div>
+  </header>
+  <div class="clockwrap">
+    <div id="clock" class="clock">--:--</div>
+    <div id="date" class="date"></div>
+  </div>
+  <div class="bigbtns">
+    <button id="btnIn" class="big in">SIGN IN<small>Look at the camera</small></button>
+    <button id="btnOut" class="big out">SIGN OUT<small>Look at the camera</small></button>
+  </div>
+  <div id="engineStatus" class="engine"></div>
+  <footer class="foot">
+    <button id="btnAdd" class="add">+ Add New</button>
+    <button id="btnAdmin" class="link">Records</button>
+  </footer>
+</section>
+
+<!-- ================= SCAN ================= -->
+<section id="scan" class="screen">
+  <div class="scanhead">
+    <div id="scanTitle" class="scantitle">Signing in</div>
+    <button id="scanCancel" class="ghost">Cancel</button>
+  </div>
+  <div class="camwrap">
+    <video id="video" playsinline muted autoplay></video>
+    <div id="oval" class="oval"></div>
+  </div>
+  <div class="bar"><div id="scanBar"></div></div>
+  <div id="scanMsg" class="scanmsg">Starting camera…</div>
+  <div id="scanHint" class="scanhint"></div>
+  <div id="poseDots" class="dots hidden"></div>
+  <div id="debug" class="debug hidden"></div>
+</section>
+
+<!-- ================= MESSAGE ================= -->
+<section id="msg" class="screen">
+  <div class="msgcard">
+    <div id="msgIcon" class="msgicon"></div>
+    <div id="msgTitle" class="msgtitle"></div>
+    <div id="msgText" class="msgtext"></div>
+    <div id="msgBtns" class="msgbtns"></div>
+  </div>
+</section>
+
+<!-- ================= ADD NEW ================= -->
+<section id="add" class="screen">
+  <div class="formcard">
+    <h1 id="addTitle">Add new employee</h1>
+    <p class="lead">Enter your name, then look at the camera to register your face.</p>
+    <div class="field"><label for="fFirst">First name</label><input id="fFirst" autocomplete="off" autocapitalize="words"></div>
+    <div class="field"><label for="fLast">Last name</label><input id="fLast" autocomplete="off" autocapitalize="words"></div>
+    <div class="notice">
+      <b>How your face data is used.</b> The camera turns your face into a numerical template, stored only on this iPad and used only to record your sign-in and sign-out times. No photos or video are kept. If you'd rather not use face recognition, tell your supervisor and they'll record your times manually instead.
+    </div>
+    <div class="err" id="addErr"></div>
+    <div class="row">
+      <button id="addNext" class="btn primary">I understand — scan my face</button>
+      <button id="addCancel" class="btn">Cancel</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ADMIN ================= -->
+<section id="admin" class="screen">
+  <div class="adminhead">
+    <h1>Attendance records</h1>
+    <div class="tabs">
+      <button class="tab on" data-tab="records">Records</button>
+      <button class="tab" data-tab="staff">Employees</button>
+      <button class="tab" data-tab="settings">Settings</button>
+      <button id="adminClose" class="btn sm dark">Back to kiosk</button>
+    </div>
+  </div>
+  <div id="adminBody" class="adminbody"></div>
+</section>
+
+<!-- ================= MODAL ================= -->
+<div id="modal" class="modal hidden">
+  <div class="modalcard">
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+    <div id="modalErr" class="err"></div>
+    <div id="modalBtns"></div>
+  </div>
+</div>
+
+<script type="module">
+/* ============================================================
+   CGC Site Sign In — single-file kiosk app
+   Face recognition: Human (vladmandic) — detection, 3D mesh pose,
+   face embedding, anti-spoof and liveness models, run on-device.
+   ============================================================ */
+
+const ENGINE_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/human@3/dist/human.esm.js';
+const MODELS_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/human@3/models/';
+
+const HCONFIG = {
+  modelBasePath: MODELS_URL,
+  backend: 'humangl',
+  debug: false,
+  cacheSensitivity: 0,
+  filter: { enabled: true, equalization: true, flip: false },
+  face: {
+    enabled: true,
+    detector: { rotation: true, maxDetected: 1, minConfidence: 0.4, return: false },
+    mesh: { enabled: true },
+    attention: { enabled: false },
+    iris: { enabled: false },
+    description: { enabled: true },
+    emotion: { enabled: false },
+    antispoof: { enabled: true },
+    liveness: { enabled: true },
+  },
+  body: { enabled: false },
+  hand: { enabled: false },
+  object: { enabled: false },
+  gesture: { enabled: false },
+  segmentation: { enabled: false },
+};
+
+const DEFAULTS = {
+  id: 'app',
+  company: 'Cheltenham Green Civils',
+  appName: 'Site sign in',
+  logo: null,
+  threshold: 0.55,   // minimum similarity to accept a match
+  margin: 0.05,      // required gap between best and second-best person
+  frames: 3,         // consecutive agreeing frames required
+  liveness: true,
+  realMin: 0.5,
+  liveMin: 0.5,
+  learn: true,       // add confirmed scans to the person's templates
+  debug: false,
+  adminPin: '',
+};
+const MAX_LEARNED = 10;
+
+/* ---------------- helpers ---------------- */
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const dKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const hm = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const parseKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const fmtDate = k => parseKey(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const raf = () => new Promise(r => requestAnimationFrame(() => r()));
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
+const fullName = e => `${e.first} ${e.last}`;
+const titleCase = s => s.trim().replace(/\s+/g, ' ').replace(/(^|[\s'-])(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+
+function toast(text, ms = 2500) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
+  document.body.appendChild(t); setTimeout(() => t.remove(), ms);
+}
+
+/* ---------------- storage (IndexedDB) ---------------- */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('cgc-signin', 1);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        ['employees', 'records', 'settings'].forEach(s => { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); });
+      };
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  all(store) {
+    return new Promise((res, rej) => {
+      const q = this.db.transaction(store).objectStore(store).getAll();
+      q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+    });
+  },
+  put(store, obj) {
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction(store, 'readwrite');
+      tx.objectStore(store).put(obj);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  },
+  del(store, id) {
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction(store, 'readwrite');
+      tx.objectStore(store).delete(id);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  },
+  clear(store) {
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction(store, 'readwrite');
+      tx.objectStore(store).clear();
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  },
+};
+
+const S = { employees: [], records: [], settings: { ...DEFAULTS } };
+const saveSettings = () => DB.put('settings', S.settings);
+const openRecord = empId => S.records.find(r => r.empId === empId && !r.out);
+const empById = id => S.employees.find(e => e.id === id);
+
+/* ---------------- auto sign-out at 23:59 ---------------- */
+async function autoSignOut() {
+  const now = new Date(); const today = dKey(now);
+  const lastMinute = now.getHours() === 23 && now.getMinutes() >= 59;
+  let changed = false;
+  for (const r of S.records) {
+    if (r.out) continue;
+    if (r.date < today || (lastMinute && r.date === today)) {
+      const d = parseKey(r.date); d.setHours(23, 59, 0, 0);
+      r.out = d.toISOString(); r.outSrc = 'auto';
+      await DB.put('records', r); changed = true;
+    }
+  }
+  if (changed) { renderHome(); if (currentScreen === 'admin') renderAdmin(); }
+}
+
+/* ---------------- screens ---------------- */
+let currentScreen = 'home';
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  currentScreen = id;
+  if (id === 'admin') armAdminIdle(); else clearTimeout(adminIdleTimer);
+}
+
+function renderHome() {
+  const st = S.settings;
+  $('#companyName').textContent = st.company || '';
+  $('#appName').textContent = st.appName || '';
+  const logo = $('#logo');
+  if (st.logo) { logo.src = st.logo; logo.classList.remove('hidden'); } else logo.classList.add('hidden');
+  $('#onsiteCount').textContent = S.records.filter(r => !r.out).length;
+}
+
+function tickClock() {
+  const n = new Date();
+  $('#clock').textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+  $('#date').textContent = n.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/* ---------------- message screen ---------------- */
+let msgResolve = null, msgTimer = null;
+function showMsg({ icon = '', ok = false, title = '', text = '', buttons = [], timeout = 0, timeoutValue = 'timeout' }) {
+  return new Promise(res => {
+    clearTimeout(msgTimer);
+    $('#msgIcon').textContent = icon;
+    $('#msgIcon').className = 'msgicon' + (ok ? ' ok' : '');
+    $('#msgTitle').textContent = title;
+    $('#msgText').textContent = text;
+    const bw = $('#msgBtns'); bw.innerHTML = '';
+    const done = v => { clearTimeout(msgTimer); msgResolve = null; res(v); };
+    buttons.forEach(b => {
+      const el = document.createElement('button');
+      el.textContent = b.label; if (b.cls) el.className = b.cls;
+      el.onclick = () => done(b.value);
+      bw.appendChild(el);
+    });
+    msgResolve = done;
+    showScreen('msg');
+    if (timeout) msgTimer = setTimeout(() => done(timeoutValue), timeout);
+  });
+}
+
+/* ---------------- modal ---------------- */
+function modal({ title, html = '', buttons = [{ label: 'OK', value: 'ok', cls: 'primary' }], validate }) {
+  return new Promise(res => {
+    const m = $('#modal');
+    $('#modalTitle').textContent = title;
+    $('#modalBody').innerHTML = html;
+    $('#modalErr').textContent = '';
+    const bw = $('#modalBtns'); bw.innerHTML = '';
+    buttons.forEach(b => {
+      const el = document.createElement('button');
+      el.className = 'btn ' + (b.cls || ''); el.textContent = b.label;
+      el.onclick = () => {
+        const data = {};
+        $('#modalBody').querySelectorAll('[name]').forEach(i => { data[i.name] = i.type === 'checkbox' ? i.checked : i.value; });
+        if (validate && b.value !== 'cancel') {
+          const err = validate(b.value, data);
+          if (err) { $('#modalErr').textContent = err; return; }
+        }
+        m.classList.add('hidden'); res({ value: b.value, data });
+      };
+      bw.appendChild(el);
+    });
+    m.classList.remove('hidden');
+  });
+}
+const confirmBox = async (title, text, yes = 'Yes', cls = 'primary') =>
+  (await modal({ title, html: `<p style="font-size:17px;line-height:1.5;margin:0">${esc(text)}</p>`, buttons: [{ label: 'Cancel', value: 'cancel' }, { label: yes, value: 'yes', cls }] })).value === 'yes';
+
+/* ---------------- camera ---------------- */
+const video = $('#video');
+let stream = null, camStopTimer = null;
+async function startCamera() {
+  clearTimeout(camStopTimer);
+  if (!stream || stream.getVideoTracks().every(t => t.readyState === 'ended')) {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+    });
+  }
+  if (video.srcObject !== stream) video.srcObject = stream;
+  await video.play().catch(() => {});
+  for (let i = 0; i < 100 && !(video.readyState >= 2 && video.videoWidth); i++) await wait(50);
+}
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null;
+}
+const scheduleCamStop = () => { clearTimeout(camStopTimer); camStopTimer = setTimeout(stopCamera, 90000); };
+
+/* ---------------- face engine ---------------- */
+let human = null, engineReady = false, enginePromise = null;
+function loadEngine() {
+  if (engineReady) return Promise.resolve(human);
+  if (enginePromise) return enginePromise;
+  $('#engineStatus').textContent = 'Loading face recognition…';
+  enginePromise = (async () => {
+    const mod = await import(ENGINE_URL);
+    const Human = mod.Human || mod.default;
+    human = new Human(HCONFIG);
+    await human.load();
+    await human.warmup();
+    engineReady = true;
+    $('#engineStatus').textContent = '';
+    return human;
+  })().catch(e => {
+    enginePromise = null;
+    $('#engineStatus').textContent = 'Face recognition not loaded — check the internet connection.';
+    throw e;
+  });
+  return enginePromise;
+}
+
+function cosine(a, b) {
+  let dot = 0, na = 0, nb = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? dot / Math.sqrt(na * nb) : 0;
+}
+const similarity = (a, b) => (human?.match?.similarity ? human.match.similarity(a, b) : cosine(a, b));
+function meanEmbedding(list) {
+  const n = list[0].length, out = new Array(n).fill(0);
+  for (const e of list) for (let i = 0; i < n; i++) out[i] += e[i];
+  return out.map(v => v / list.length);
+}
+
+function rankPeople(emb, exceptId = null) {
+  const scores = [];
+  for (const e of S.employees) {
+    if (!e.active || !e.samples?.length || e.id === exceptId) continue;
+    let best = 0;
+    for (const s of e.samples) { const v = similarity(emb, s.e); if (v > best) best = v; }
+    scores.push({ emp: e, score: best });
+  }
+  scores.sort((a, b) => b.score - a.score);
+  return { top: scores[0] || null, second: scores[1] || null };
+}
+
+function assess(f) {
+  const vw = video.videoWidth || 1, vh = video.videoHeight || 1;
+  const [x, y, w, h] = f.box || [0, 0, 0, 0];
+  const size = w / Math.min(vw, vh);
+  const cx = (x + w / 2) / vw, cy = (y + h / 2) / vh;
+  if (size < 0.22) return { ok: false, msg: 'Move closer' };
+  if (size > 0.85) return { ok: false, msg: 'Move back a little' };
+  if (Math.abs(cx - 0.5) > 0.2 || Math.abs(cy - 0.5) > 0.25) return { ok: false, msg: 'Centre your face in the oval' };
+  if ((f.faceScore ?? f.score ?? 1) < 0.55) return { ok: false, msg: 'Hold still' };
+  const a = f.rotation?.angle || { yaw: 0, pitch: 0, roll: 0 };
+  return { ok: true, a };
+}
+
+/* ---------------- scan UI ---------------- */
+let scanCtl = null;
+const scanMsg = t => { $('#scanMsg').textContent = t; };
+const scanHint = t => { $('#scanHint').textContent = t || ''; };
+const scanProgress = p => { $('#scanBar').style.width = Math.round(Math.max(0, Math.min(1, p)) * 100) + '%'; $('#oval').classList.toggle('good', p > 0); };
+const dbg = t => { const d = $('#debug'); d.classList.toggle('hidden', !S.settings.debug); if (S.settings.debug) d.textContent = t; };
+
+async function prepareScan(title, ctl) {
+  showScreen('scan');
+  $('#scanTitle').textContent = title;
+  scanMsg('Starting camera…'); scanHint(''); scanProgress(0); dbg('');
+  try { await startCamera(); }
+  catch (e) { return { error: 'camera', detail: e }; }
+  if (!engineReady) {
+    scanMsg('Loading face recognition…');
+    scanHint('First load can take a few seconds');
+    try { await loadEngine(); } catch (e) { return { error: 'engine', detail: e }; }
+  }
+  if (ctl.cancelled) return { cancelled: true };
+  return null;
+}
+
+async function showScanError(r) {
+  if (r.error === 'camera') {
+    await showMsg({ icon: '!', title: 'Camera not available', text: 'Allow camera access for this site: iPad Settings › Apps › Safari › Camera › Allow. Then try again.', buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 15000 });
+  } else {
+    await showMsg({ icon: '!', title: 'Face recognition not loaded', text: 'Check the iPad is connected to the internet, then try again.', buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 15000 });
+  }
+}
+
+/* identify: multi-frame matching with quality gates, margin test and liveness */
+async function identify(ctl) {
+  const st = S.settings;
+  const start = performance.now();
+  let streak = [], misses = 0;
+  scanMsg('Look at the camera');
+  while (!ctl.cancelled) {
+    if (performance.now() - start > 15000) return { timeout: true };
+    let res;
+    try { res = await human.detect(video); } catch { await wait(100); continue; }
+    await raf();
+    if (ctl.cancelled) break;
+    const f = res?.face?.[0];
+    if (!f) { streak = []; scanProgress(0); scanMsg('Look at the camera'); scanHint(''); dbg('no face'); continue; }
+    const q = assess(f);
+    if (!q.ok) { streak = []; scanProgress(0); scanMsg(q.msg); scanHint(''); continue; }
+    if (Math.abs(q.a.yaw) > 0.35 || Math.abs(q.a.pitch) > 0.45) { streak = []; scanProgress(0); scanMsg('Look straight at the camera'); continue; }
+    if (!f.embedding?.length) continue;
+
+    const { top, second } = rankPeople(f.embedding);
+    dbg(`best: ${top ? fullName(top.emp) + ' ' + top.score.toFixed(3) : '-'}  next: ${second ? second.score.toFixed(3) : '-'}  real: ${(f.real ?? 0).toFixed(2)}  live: ${(f.live ?? 0).toFixed(2)}`);
+
+    const good = top && top.score >= st.threshold && (!second || top.score - second.score >= st.margin);
+    if (!good) {
+      streak = []; scanProgress(0); misses++;
+      scanMsg('Hold still…');
+      scanHint(misses > 12 ? 'Take off safety glasses or a hood if you can, and face the light' : '');
+      continue;
+    }
+    if (streak.length && streak[0].emp.id !== top.emp.id) streak = [];
+    streak.push({ emp: top.emp, score: top.score, real: f.real ?? 1, live: f.live ?? 1, emb: f.embedding });
+    scanMsg('Hold still…'); scanHint('');
+    scanProgress(streak.length / st.frames);
+
+    if (streak.length >= st.frames) {
+      if (st.liveness) {
+        const real = avg(streak.map(s => s.real)), live = avg(streak.map(s => s.live));
+        if (real < st.realMin || live < st.liveMin) {
+          streak = []; scanProgress(0);
+          scanMsg('Face check failed');
+          scanHint('Use your real face — not a photo or screen');
+          await wait(900);
+          continue;
+        }
+      }
+      return {
+        emp: top.emp,
+        score: avg(streak.map(s => s.score)),
+        emb: meanEmbedding(streak.map(s => s.emb)),
+      };
+    }
+  }
+  return { cancelled: true };
+}
+
+/* learning: strengthen a person's templates from confirmed scans */
+async function learnFrom(emp, r) {
+  if (!S.settings.learn || !r.emb || r.score < S.settings.threshold + 0.05) return;
+  const learned = emp.samples.filter(s => s.src === 'learn');
+  if (learned.length >= MAX_LEARNED) {
+    const oldest = learned.reduce((a, b) => (a.t < b.t ? a : b));
+    emp.samples.splice(emp.samples.indexOf(oldest), 1);
+  }
+  emp.samples.push({ e: Array.from(r.emb), src: 'learn', t: Date.now() });
+  await DB.put('employees', emp);
+}
+
+/* ---------------- sign in / out flow ---------------- */
+let busy = false;
+async function startFlow(mode) {
+  if (busy) return; busy = true;
+  try {
+    await autoSignOut();
+    if (!S.employees.some(e => e.active && e.samples?.length)) {
+      await showMsg({ icon: '!', title: 'No one registered yet', text: 'Tap Add New to register the first employee.', buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 8000 });
+      return;
+    }
+    const ctl = { cancelled: false }; scanCtl = ctl;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const prep = await prepareScan(mode === 'in' ? 'Signing in' : 'Signing out', ctl);
+      if (prep?.cancelled) return;
+      if (prep?.error) { await showScanError(prep); return; }
+
+      const r = await identify(ctl);
+      if (r.cancelled) return;
+      if (r.timeout) {
+        const v = await showMsg({
+          icon: '?', title: 'Face not recognised',
+          text: 'Face the light, look straight at the camera, and take off safety glasses if you can. If this keeps happening, ask your supervisor.',
+          buttons: [{ label: 'Try again', value: 'retry', cls: 'primary' }, { label: 'Cancel', value: 'cancel' }],
+          timeout: 20000, timeoutValue: 'cancel',
+        });
+        if (v === 'retry') continue;
+        return;
+      }
+      const v = await showMsg({
+        icon: '?', title: `${fullName(r.emp)}?`, text: 'Is this you?',
+        buttons: [{ label: 'Yes, that’s me', value: 'yes', cls: 'primary' }, { label: 'Not me', value: 'no' }],
+        timeout: 15000, timeoutValue: 'cancel',
+      });
+      if (v === 'no') continue;
+      if (v !== 'yes') return;
+      await learnFrom(r.emp, r);
+      await doAction(mode, r.emp);
+      return;
+    }
+  } finally {
+    busy = false; scanCtl = null;
+    showScreen('home'); renderHome(); scheduleCamStop();
+  }
+}
+
+async function doAction(mode, emp) {
+  await autoSignOut();
+  const now = new Date();
+  const open = openRecord(emp.id);
+  if (mode === 'in') {
+    if (open) {
+      const v = await showMsg({
+        icon: 'i', title: 'You’re already signed in',
+        text: `${fullName(emp)}, you’ve been signed in since ${hm(open.in)}. Do you want to sign out now?`,
+        buttons: [{ label: 'Sign out', value: 'out', cls: 'primary' }, { label: 'Cancel', value: 'cancel' }],
+        timeout: 15000, timeoutValue: 'cancel',
+      });
+      if (v === 'out') await signOut(open, emp, now);
+      return;
+    }
+    const rec = { id: uid(), empId: emp.id, date: dKey(now), in: now.toISOString(), out: null, inSrc: 'face', outSrc: null, edits: [] };
+    S.records.push(rec); await DB.put('records', rec);
+    renderHome();
+    await showMsg({ icon: '✓', ok: true, title: `You are signed in — ${hm(rec.in)}`, text: fullName(emp), timeout: 3500 });
+  } else {
+    if (!open) {
+      await showMsg({
+        icon: '!', title: 'You’re not signed in',
+        text: `There’s no sign-in for ${fullName(emp)} today. Please ask your supervisor to add your times.`,
+        buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 10000,
+      });
+      return;
+    }
+    await signOut(open, emp, now);
+  }
+}
+
+async function signOut(rec, emp, now) {
+  rec.out = now.toISOString(); rec.outSrc = 'face';
+  await DB.put('records', rec);
+  renderHome();
+  await showMsg({ icon: '✓', ok: true, title: `You are signed out — ${hm(rec.out)}`, text: fullName(emp), timeout: 3500 });
+}
+
+/* ---------------- enrolment ---------------- */
+let addReturn = 'home', reenrolId = null;
+
+function openAdd(returnTo = 'home', emp = null) {
+  addReturn = returnTo; reenrolId = emp ? emp.id : null;
+  $('#addTitle').textContent = emp ? `Re-register face — ${fullName(emp)}` : 'Add new employee';
+  $('#fFirst').value = emp ? emp.first : '';
+  $('#fLast').value = emp ? emp.last : '';
+  $('#fFirst').disabled = $('#fLast').disabled = !!emp;
+  $('#addErr').textContent = '';
+  showScreen('add');
+  if (!emp) setTimeout(() => $('#fFirst').focus(), 100);
+}
+
+async function captureFrames(ctl, test, need = 3, timeoutMs = 25000) {
+  const start = performance.now(); let buf = [];
+  while (!ctl.cancelled) {
+    if (performance.now() - start > timeoutMs) return null;
+    let res;
+    try { res = await human.detect(video); } catch { await wait(100); continue; }
+    await raf();
+    if (ctl.cancelled) break;
+    const f = res?.face?.[0];
+    if (!f) { buf = []; scanProgress(0); scanHint('No face found — look at the camera'); continue; }
+    const q = assess(f);
+    if (!q.ok) { buf = []; scanProgress(0); scanHint(q.msg); continue; }
+    if (!f.embedding?.length) continue;
+    dbg(`yaw ${q.a.yaw.toFixed(2)}  pitch ${q.a.pitch.toFixed(2)}  real ${(f.real ?? 0).toFixed(2)}  live ${(f.live ?? 0).toFixed(2)}`);
+    if (!test(q.a)) { buf = []; scanProgress(0); scanHint(''); continue; }
+    scanHint('Hold still');
+    buf.push({ emb: f.embedding, a: q.a, real: f.real ?? 1, live: f.live ?? 1 });
+    scanProgress(buf.length / need);
+    if (buf.length >= need) return buf;
+  }
+  return 'cancel';
+}
+
+async function runEnrol(first, last) {
+  const ctl = { cancelled: false }; scanCtl = ctl;
+  const existing = reenrolId ? empById(reenrolId) : null;
+  try {
+    const prep = await prepareScan(existing ? `Re-registering ${fullName(existing)}` : `Registering ${first} ${last}`, ctl);
+    if (prep?.cancelled) return;
+    if (prep?.error) { await showScanError(prep); return; }
+
+    const dots = $('#poseDots'); dots.classList.remove('hidden');
+    let base = { yaw: 0, pitch: 0 }, sideSign = 0, tiltSign = 0;
+    const straight = a => Math.abs(a.yaw) < 0.25 && Math.abs(a.pitch) < 0.4;
+    const poses = [
+      { msg: 'Look straight at the camera', test: straight },
+      { msg: 'Keep looking straight — hold still', test: straight },
+      { msg: 'Turn your head slightly to one side', test: a => { const d = a.yaw - base.yaw; return Math.abs(d) > 0.2 && Math.abs(d) < 0.75; }, after: a => { sideSign = Math.sign(a.yaw - base.yaw); } },
+      { msg: 'Now turn slightly to the other side', test: a => { const d = a.yaw - base.yaw; return Math.abs(d) > 0.2 && Math.abs(d) < 0.75 && Math.sign(d) === -sideSign; } },
+      { msg: 'Tilt your head slightly up or down', test: a => { const d = a.pitch - base.pitch; return Math.abs(d) > 0.12 && Math.abs(d) < 0.6 && Math.abs(a.yaw - base.yaw) < 0.3; }, after: a => { tiltSign = Math.sign(a.pitch - base.pitch); } },
+      { msg: 'Now tilt slightly the other way', test: a => { const d = a.pitch - base.pitch; return Math.abs(d) > 0.12 && Math.abs(d) < 0.6 && Math.abs(a.yaw - base.yaw) < 0.3 && Math.sign(d) === -tiltSign; } },
+    ];
+    const samples = []; const straightFrames = [];
+    for (let i = 0; i < poses.length; i++) {
+      dots.innerHTML = poses.map((_, j) => `<span class="${j < i ? 'done' : j === i ? 'now' : ''}"></span>`).join('');
+      scanMsg(poses[i].msg); scanProgress(0);
+      const frames = await captureFrames(ctl, poses[i].test);
+      if (frames === 'cancel') return;
+      if (!frames) {
+        await showMsg({ icon: '!', title: 'Registration didn’t finish', text: 'Stand in good light, fill the oval with your face and follow each instruction. Please try again.', buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 15000 });
+        return;
+      }
+      const last = frames[frames.length - 1].a;
+      if (i < 2) {
+        straightFrames.push(...frames);
+        base = { yaw: avg(straightFrames.map(f => f.a.yaw)), pitch: avg(straightFrames.map(f => f.a.pitch)) };
+      }
+      poses[i].after?.(last);
+      samples.push(meanEmbedding(frames.map(f => f.emb)));
+      scanProgress(1); scanHint('✓');
+      await wait(450);
+    }
+    dots.innerHTML = poses.map(() => '<span class="done"></span>').join('');
+
+    if (S.settings.liveness) {
+      const real = avg(straightFrames.map(f => f.real)), live = avg(straightFrames.map(f => f.live));
+      if (real < S.settings.realMin || live < S.settings.liveMin) {
+        await showMsg({ icon: '!', title: 'Face check failed', text: 'Registration needs a real face in front of the camera — not a photo or screen. Please try again.', buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 15000 });
+        return;
+      }
+    }
+
+    // duplicate face check against everyone else
+    const front = meanEmbedding(samples.slice(0, 2));
+    const { top } = rankPeople(front, existing?.id);
+    if (top && top.score >= S.settings.threshold) {
+      const v = await showMsg({
+        icon: '!', title: 'Already registered?',
+        text: `This face looks like ${fullName(top.emp)} (${top.emp.id}), who is already registered. Each person should only be registered once.`,
+        buttons: [{ label: 'Cancel', value: 'cancel', cls: 'primary' }, { label: 'Register anyway', value: 'go' }],
+        timeout: 30000, timeoutValue: 'cancel',
+      });
+      if (v !== 'go') return;
+    }
+
+    const now = new Date().toISOString();
+    const tpl = samples.map(e => ({ e: Array.from(e), src: 'enrol', t: Date.now() }));
+    let emp;
+    if (existing) {
+      existing.samples = tpl; existing.enrolled = now; existing.active = true; emp = existing;
+    } else {
+      emp = { id: nextEmpId(), first, last, active: true, created: now, enrolled: now, samples: tpl };
+      S.employees.push(emp);
+    }
+    await DB.put('employees', emp);
+    await showMsg({ icon: '✓', ok: true, title: existing ? 'Face re-registered' : `${fullName(emp)} added`, text: `Employee ID ${emp.id}. You can now sign in with your face.`, timeout: 4500 });
+  } finally {
+    $('#poseDots').classList.add('hidden');
+    scanCtl = null; reenrolId = null;
+    if (addReturn === 'admin') { showScreen('admin'); renderAdmin(); } else { showScreen('home'); renderHome(); }
+    scheduleCamStop();
+  }
+}
+
+function nextEmpId() {
+  const max = S.employees.reduce((m, e) => Math.max(m, parseInt(String(e.id).replace(/\D/g, ''), 10) || 0), 0);
+  return 'E' + String(max + 1).padStart(3, '0');
+}
+
+/* ---------------- admin ---------------- */
+let adminTab = 'records', adminIdleTimer = null;
+const weekStart = d => { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); return x; };
+const filt = { emp: '', from: dKey(weekStart(new Date())), to: dKey(new Date(weekStart(new Date()).getTime() + 6 * 864e5)) };
+
+function armAdminIdle() {
+  clearTimeout(adminIdleTimer);
+  adminIdleTimer = setTimeout(() => { if (currentScreen === 'admin' && $('#modal').classList.contains('hidden')) { showScreen('home'); renderHome(); } else armAdminIdle(); }, 180000);
+}
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (currentScreen === 'admin') armAdminIdle(); }));
+
+async function openAdmin() {
+  if (S.settings.adminPin) {
+    const r = await modal({
+      title: 'Enter admin PIN',
+      html: '<div class="field"><input name="pin" type="password" inputmode="numeric" autocomplete="off"></div>',
+      buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Open', value: 'ok', cls: 'primary' }],
+      validate: (v, d) => (d.pin === S.settings.adminPin ? null : 'Incorrect PIN'),
+    });
+    if (r.value !== 'ok') return;
+  }
+  await autoSignOut();
+  showScreen('admin'); renderAdmin();
+}
+
+function statusTags(r) {
+  const t = [];
+  if (!r.out) t.push('<span class="tag">On site</span>');
+  if (r.outSrc === 'auto') t.push('<span class="tag dark">Auto sign-out</span>');
+  if (r.inSrc === 'manual' || r.outSrc === 'manual') t.push('<span class="tag grey">Manual</span>');
+  if (r.edits?.length) t.push('<span class="tag grey">Edited</span>');
+  return t.join('');
+}
+
+function filteredRecords() {
+  return S.records
+    .filter(r => (!filt.emp || r.empId === filt.emp) && (!filt.from || r.date >= filt.from) && (!filt.to || r.date <= filt.to))
+    .sort((a, b) => (a.date === b.date ? a.in.localeCompare(b.in) : b.date.localeCompare(a.date)));
+}
+
+function renderAdmin() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === adminTab));
+  const body = $('#adminBody');
+  if (adminTab === 'records') body.innerHTML = recordsHTML();
+  else if (adminTab === 'staff') body.innerHTML = staffHTML();
+  else body.innerHTML = settingsHTML();
+  bindAdmin();
+}
+
+function recordsHTML() {
+  const onsite = S.records.filter(r => !r.out);
+  const emps = [...S.employees].sort((a, b) => fullName(a).localeCompare(fullName(b)));
+  const rows = filteredRecords();
+  return `
+    <div class="bar-title">On site now (${onsite.length})</div>
+    ${onsite.length ? `<div class="chips">${onsite.map(r => { const e = empById(r.empId); return `<div class="chip"><b>${esc(e ? fullName(e) : r.empId)}</b> · in ${hm(r.in)}</div>`; }).join('')}</div>` : '<div class="empty">No one is signed in.</div>'}
+    <div class="bar-title">Sign-in records</div>
+    <div class="filters">
+      <div class="field"><label>Employee</label><select id="fEmp"><option value="">All employees</option>${emps.map(e => `<option value="${esc(e.id)}" ${filt.emp === e.id ? 'selected' : ''}>${esc(fullName(e))} (${esc(e.id)})</option>`).join('')}</select></div>
+      <div class="field"><label>From</label><input type="date" id="fFrom" value="${filt.from}"></div>
+      <div class="field"><label>To</label><input type="date" id="fTo" value="${filt.to}"></div>
+      <button class="btn sm" id="fWeek">This week</button>
+      <button class="btn sm" id="fLastWeek">Last week</button>
+      <span style="flex:1"></span>
+      <button class="btn sm" id="addManual">+ Add manual entry</button>
+      <button class="btn sm primary" id="exportCsv">Export CSV</button>
+    </div>
+    ${rows.length ? `<div class="tablewrap"><table>
+      <thead><tr><th>Date</th><th>Employee</th><th>ID</th><th>Sign in</th><th>Sign out</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows.map(r => { const e = empById(r.empId); return `<tr>
+        <td>${esc(fmtDate(r.date))}</td>
+        <td>${esc(e ? fullName(e) : 'Unknown')}</td>
+        <td>${esc(r.empId)}</td>
+        <td class="v">${hm(r.in)}</td>
+        <td class="v">${r.out ? hm(r.out) : '—'}</td>
+        <td>${statusTags(r)}</td>
+        <td><button class="btn sm" data-edit="${r.id}">Edit</button></td></tr>`; }).join('')}</tbody>
+    </table></div>` : '<div class="empty">No records for these filters.</div>'}`;
+}
+
+function staffHTML() {
+  const emps = [...S.employees].sort((a, b) => (a.active === b.active ? fullName(a).localeCompare(fullName(b)) : a.active ? -1 : 1));
+  return `
+    <div class="filters"><span style="flex:1"></span><button class="btn sm primary" id="staffAdd">+ Add employee</button></div>
+    ${emps.length ? `<div class="tablewrap"><table>
+      <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Face templates</th><th>Registered</th><th></th></tr></thead>
+      <tbody>${emps.map(e => {
+        const en = (e.samples || []).filter(s => s.src === 'enrol').length, le = (e.samples || []).filter(s => s.src === 'learn').length;
+        return `<tr>
+        <td>${esc(e.id)}</td><td>${esc(fullName(e))}</td>
+        <td>${e.active ? '<span class="tag">Active</span>' : '<span class="tag grey">Deactivated</span>'}</td>
+        <td class="v">${e.samples?.length ? `${en} registered + ${le} learned` : 'None'}</td>
+        <td>${e.enrolled ? esc(new Date(e.enrolled).toLocaleDateString('en-GB')) : '—'}</td>
+        <td style="white-space:nowrap">
+          <button class="btn sm" data-ename="${e.id}">Edit name</button>
+          <button class="btn sm" data-reenrol="${e.id}">${e.active ? 'Re-register face' : 'Reactivate'}</button>
+          ${e.active ? `<button class="btn sm" data-deact="${e.id}">Deactivate</button>` : ''}
+        </td></tr>`; }).join('')}</tbody>
+    </table></div>` : '<div class="empty">No employees yet.</div>'}`;
+}
+
+function settingsHTML() {
+  const st = S.settings;
+  return `
+    <div class="bar-title">Company</div>
+    <div class="setgrid">
+      <div class="setcard"><h3>Company name</h3><input type="text" id="sCompany" value="${esc(st.company)}"></div>
+      <div class="setcard"><h3>App title</h3><input type="text" id="sApp" value="${esc(st.appName)}"></div>
+      <div class="setcard"><h3>Logo</h3><p>Shown top-left on the kiosk. Use the supplied logo file.</p>
+        <div class="row"><label class="btn sm">Choose image<input type="file" id="sLogo" accept="image/*" class="vh"></label>${st.logo ? '<button class="btn sm" id="sLogoClear">Remove</button>' : ''}</div></div>
+    </div>
+    <div class="bar-title">Face recognition</div>
+    <div class="setgrid">
+      <div class="setcard"><h3>Match strictness</h3><p>Higher means fewer wrong matches but may need more tries. Default 0.55.</p>
+        <input type="range" id="sThr" min="0.40" max="0.85" step="0.01" value="${st.threshold}"><div class="valline" id="sThrV">${st.threshold.toFixed(2)}</div></div>
+      <div class="setcard"><h3>Lookalike margin</h3><p>How far ahead the best match must be of the next person. Default 0.05.</p>
+        <input type="range" id="sMar" min="0" max="0.2" step="0.01" value="${st.margin}"><div class="valline" id="sMarV">${st.margin.toFixed(2)}</div></div>
+      <div class="setcard"><h3>Frames to confirm</h3><p>Consecutive matching frames before accepting. Default 3.</p>
+        <input type="range" id="sFrames" min="2" max="8" step="1" value="${st.frames}"><div class="valline" id="sFramesV">${st.frames}</div></div>
+      <div class="setcard"><h3>Photo and screen check</h3><p>Anti-spoofing and liveness checks to block photos or videos held up to the camera.</p>
+        <label class="toggle"><input type="checkbox" id="sLive" ${st.liveness ? 'checked' : ''}> On</label>
+        <p style="margin-top:10px">Sensitivity</p><input type="range" id="sLiveMin" min="0.2" max="0.9" step="0.05" value="${st.realMin}"><div class="valline" id="sLiveMinV">${st.realMin.toFixed(2)}</div></div>
+      <div class="setcard"><h3>Learn from sign-ins</h3><p>Adds confirmed, high-confidence scans to each person's templates so recognition improves over time (up to ${MAX_LEARNED} per person).</p>
+        <label class="toggle"><input type="checkbox" id="sLearn" ${st.learn ? 'checked' : ''}> On</label></div>
+      <div class="setcard"><h3>Show match scores</h3><p>Displays live scores on the camera screen. Use while testing to set strictness.</p>
+        <label class="toggle"><input type="checkbox" id="sDebug" ${st.debug ? 'checked' : ''}> On</label></div>
+    </div>
+    <div class="bar-title">Security</div>
+    <div class="setgrid">
+      <div class="setcard"><h3>Records PIN (optional)</h3><p>If set, a PIN is needed to open Records. Leave blank for no PIN.</p>
+        <input type="password" id="sPin" inputmode="numeric" value="${esc(st.adminPin)}" autocomplete="off"></div>
+    </div>
+    <div class="bar-title">Data</div>
+    <div class="setgrid">
+      <div class="setcard"><h3>Backup</h3><p>All data is stored only on this iPad. Download a backup regularly. The backup contains face templates, so keep it secure.</p>
+        <div class="row"><button class="btn sm primary" id="sBackup">Download backup</button><label class="btn sm">Restore backup<input type="file" id="sRestore" accept=".json,application/json" class="vh"></label></div></div>
+      <div class="setcard"><h3>Storage</h3><p id="sStore">Checking…</p></div>
+      <div class="setcard"><h3>Delete all data</h3><p>Removes every employee, face template and record from this iPad.</p>
+        <button class="btn sm dark" id="sWipe">Delete everything</button></div>
+    </div>`;
+}
+
+function bindAdmin() {
+  const on = (sel, ev, fn) => { const el = $(sel); if (el) el.addEventListener(ev, fn); };
+  if (adminTab === 'records') {
+    on('#fEmp', 'change', e => { filt.emp = e.target.value; renderAdmin(); });
+    on('#fFrom', 'change', e => { filt.from = e.target.value; renderAdmin(); });
+    on('#fTo', 'change', e => { filt.to = e.target.value; renderAdmin(); });
+    on('#fWeek', 'click', () => { const s = weekStart(new Date()); filt.from = dKey(s); filt.to = dKey(new Date(s.getTime() + 6 * 864e5)); renderAdmin(); });
+    on('#fLastWeek', 'click', () => { const s = weekStart(new Date()); s.setDate(s.getDate() - 7); filt.from = dKey(s); const e = new Date(s); e.setDate(e.getDate() + 6); filt.to = dKey(e); renderAdmin(); });
+    on('#exportCsv', 'click', exportCsv);
+    on('#addManual', 'click', () => editRecord(null));
+    document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editRecord(S.records.find(r => r.id === b.dataset.edit)));
+  } else if (adminTab === 'staff') {
+    on('#staffAdd', 'click', () => openAdd('admin'));
+    document.querySelectorAll('[data-ename]').forEach(b => b.onclick = () => editName(empById(b.dataset.ename)));
+    document.querySelectorAll('[data-reenrol]').forEach(b => b.onclick = () => openAdd('admin', empById(b.dataset.reenrol)));
+    document.querySelectorAll('[data-deact]').forEach(b => b.onclick = () => deactivate(empById(b.dataset.deact)));
+  } else {
+    const st = S.settings;
+    const text = (id, key) => on(id, 'change', async e => { st[key] = e.target.value.trim(); await saveSettings(); renderHome(); toast('Saved'); });
+    text('#sCompany', 'company'); text('#sApp', 'appName');
+    on('#sPin', 'change', async e => { st.adminPin = e.target.value.trim(); await saveSettings(); toast(st.adminPin ? 'Records PIN set' : 'Records PIN removed'); });
+    const range = (id, key, fmt, extra) => {
+      on(id, 'input', e => { $(id + 'V').textContent = fmt(+e.target.value); });
+      on(id, 'change', async e => { st[key] = +e.target.value; extra?.(+e.target.value); await saveSettings(); });
+    };
+    range('#sThr', 'threshold', v => v.toFixed(2));
+    range('#sMar', 'margin', v => v.toFixed(2));
+    range('#sFrames', 'frames', v => String(v));
+    range('#sLiveMin', 'realMin', v => v.toFixed(2), v => { st.liveMin = v; });
+    const check = (id, key) => on(id, 'change', async e => { st[key] = e.target.checked; await saveSettings(); });
+    check('#sLive', 'liveness'); check('#sLearn', 'learn'); check('#sDebug', 'debug');
+    on('#sLogo', 'change', e => loadLogo(e.target.files[0]));
+    on('#sLogoClear', 'click', async () => { st.logo = null; await saveSettings(); renderHome(); renderAdmin(); });
+    on('#sBackup', 'click', downloadBackup);
+    on('#sRestore', 'change', e => restoreBackup(e.target.files[0]));
+    on('#sWipe', 'click', wipeAll);
+    showStorage();
+  }
+}
+
+async function editRecord(rec) {
+  const emps = S.employees.filter(e => e.active || (rec && e.id === rec.empId)).sort((a, b) => fullName(a).localeCompare(fullName(b)));
+  if (!emps.length) { toast('Add an employee first'); return; }
+  const today = dKey(new Date());
+  const html = `
+    <div class="field"><label>Employee</label><select name="emp" ${rec ? 'disabled' : ''}>${emps.map(e => `<option value="${esc(e.id)}" ${rec && rec.empId === e.id ? 'selected' : ''}>${esc(fullName(e))} (${esc(e.id)})</option>`).join('')}</select></div>
+    <div class="field"><label>Date</label><input type="date" name="date" value="${rec ? rec.date : today}"></div>
+    <div class="row">
+      <div class="field" style="flex:1"><label>Sign in</label><input type="time" name="tin" value="${rec ? hm(rec.in) : ''}"></div>
+      <div class="field" style="flex:1"><label>Sign out</label><input type="time" name="tout" value="${rec && rec.out ? hm(rec.out) : ''}"></div>
+    </div>
+    <p style="color:var(--muted);font-size:14px;margin:0">Leave sign out blank if the person is still on site.</p>`;
+  const buttons = [{ label: 'Cancel', value: 'cancel' }];
+  if (rec) buttons.push({ label: 'Delete', value: 'delete', cls: 'dark' });
+  buttons.push({ label: 'Save', value: 'save', cls: 'primary' });
+  const r = await modal({
+    title: rec ? 'Edit record' : 'Add manual entry', html, buttons,
+    validate: (v, d) => {
+      if (v !== 'save') return null;
+      if (!d.date) return 'Choose a date';
+      if (!d.tin) return 'Enter a sign-in time';
+      if (d.tout && d.tout <= d.tin) return 'Sign-out must be after sign-in';
+      const empId = rec ? rec.empId : d.emp;
+      if (!d.tout && S.records.some(x => x.empId === empId && !x.out && (!rec || x.id !== rec.id))) return 'This person already has an open sign-in';
+      return null;
+    },
+  });
+  if (r.value === 'cancel') return;
+  if (r.value === 'delete') {
+    if (!(await confirmBox('Delete this record?', 'This removes the sign-in record permanently.', 'Delete', 'dark'))) return;
+    S.records = S.records.filter(x => x.id !== rec.id); await DB.del('records', rec.id);
+    renderAdmin(); renderHome(); toast('Record deleted'); return;
+  }
+  const d = r.data;
+  const inIso = new Date(`${d.date}T${d.tin}:00`).toISOString();
+  const outIso = d.tout ? new Date(`${d.date}T${d.tout}:00`).toISOString() : null;
+  if (rec) {
+    const before = { date: rec.date, in: rec.in, out: rec.out };
+    rec.date = d.date;
+    if (rec.in !== inIso) { rec.in = inIso; rec.inSrc = 'manual'; }
+    if (rec.out !== outIso) { rec.out = outIso; rec.outSrc = outIso ? 'manual' : null; }
+    rec.edits = rec.edits || [];
+    rec.edits.push({ at: new Date().toISOString(), from: before, to: { date: rec.date, in: rec.in, out: rec.out } });
+    await DB.put('records', rec);
+  } else {
+    const nr = { id: uid(), empId: d.emp, date: d.date, in: inIso, out: outIso, inSrc: 'manual', outSrc: outIso ? 'manual' : null, edits: [] };
+    S.records.push(nr); await DB.put('records', nr);
+  }
+  await autoSignOut();
+  renderAdmin(); renderHome(); toast('Saved');
+}
+
+async function editName(emp) {
+  const r = await modal({
+    title: `Edit name — ${emp.id}`,
+    html: `<div class="field"><label>First name</label><input name="first" value="${esc(emp.first)}"></div><div class="field"><label>Last name</label><input name="last" value="${esc(emp.last)}"></div>`,
+    buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'save', cls: 'primary' }],
+    validate: (v, d) => (d.first.trim() && d.last.trim() ? null : 'Enter both names'),
+  });
+  if (r.value !== 'save') return;
+  emp.first = titleCase(r.data.first); emp.last = titleCase(r.data.last);
+  await DB.put('employees', emp); renderAdmin(); toast('Saved');
+}
+
+async function deactivate(emp) {
+  if (!(await confirmBox(`Deactivate ${fullName(emp)}?`, 'Their face templates will be deleted from this iPad and they won’t be able to sign in. Their attendance records are kept.', 'Deactivate', 'dark'))) return;
+  emp.active = false; emp.samples = [];
+  await DB.put('employees', emp);
+  const open = openRecord(emp.id);
+  if (open) { open.out = new Date().toISOString(); open.outSrc = 'manual'; await DB.put('records', open); }
+  renderAdmin(); renderHome(); toast('Deactivated');
+}
+
+function csvCell(v) { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
+const METHOD = { face: 'Face', manual: 'Manual', auto: 'Auto (23:59)' };
+function exportCsv() {
+  const rows = filteredRecords().slice().sort((a, b) => (a.date === b.date ? a.in.localeCompare(b.in) : a.date.localeCompare(b.date)));
+  const head = ['Date', 'Day', 'Employee ID', 'First name', 'Last name', 'Sign in', 'Sign out', 'Sign in method', 'Sign out method', 'Edited'];
+  const lines = [head.join(',')];
+  for (const r of rows) {
+    const e = empById(r.empId) || { first: '', last: '' };
+    const day = parseKey(r.date).toLocaleDateString('en-GB', { weekday: 'long' });
+    lines.push([r.date.split('-').reverse().join('/'), day, r.empId, e.first, e.last, hm(r.in), r.out ? hm(r.out) : '', METHOD[r.inSrc] || r.inSrc, r.out ? METHOD[r.outSrc] || r.outSrc : 'Still on site', r.edits?.length ? 'Yes' : ''].map(csvCell).join(','));
+  }
+  download(`sign-in-records_${filt.from || 'start'}_to_${filt.to || 'end'}.csv`, '\ufeff' + lines.join('\r\n'), 'text/csv');
+}
+
+function download(name, content, type) {
+  const blob = new Blob([content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function loadLogo(file) {
+  if (!file) return;
+  const img = new Image();
+  img.onload = async () => {
+    const scale = Math.min(1, 500 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    S.settings.logo = c.toDataURL('image/png');
+    URL.revokeObjectURL(img.src);
+    await saveSettings(); renderHome(); renderAdmin(); toast('Logo saved');
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function downloadBackup() {
+  const data = { app: 'cgc-signin', version: 1, exported: new Date().toISOString(), settings: S.settings, employees: S.employees, records: S.records };
+  download(`sign-in-backup_${dKey(new Date())}.json`, JSON.stringify(data), 'application/json');
+}
+
+async function restoreBackup(file) {
+  if (!file) return;
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { toast('That file isn’t a valid backup'); return; }
+  if (data.app !== 'cgc-signin' || !Array.isArray(data.employees) || !Array.isArray(data.records)) { toast('That file isn’t a sign-in backup'); return; }
+  if (!(await confirmBox('Restore backup?', `This replaces everything on this iPad with the backup from ${new Date(data.exported).toLocaleString('en-GB')} (${data.employees.length} employees, ${data.records.length} records).`, 'Restore'))) return;
+  await DB.clear('employees'); await DB.clear('records');
+  for (const e of data.employees) await DB.put('employees', e);
+  for (const r of data.records) await DB.put('records', r);
+  S.settings = { ...DEFAULTS, ...(data.settings || {}), id: 'app' }; await saveSettings();
+  S.employees = data.employees; S.records = data.records;
+  renderHome(); renderAdmin(); toast('Backup restored');
+}
+
+async function wipeAll() {
+  if (!(await confirmBox('Delete everything?', 'Every employee, face template and attendance record on this iPad will be permanently deleted. Download a backup first if you need one.', 'Continue', 'dark'))) return;
+  const r = await modal({
+    title: 'Type DELETE to confirm',
+    html: '<div class="field"><input name="c" autocomplete="off" autocapitalize="characters"></div>',
+    buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Delete everything', value: 'ok', cls: 'dark' }],
+    validate: (v, d) => (d.c.trim().toUpperCase() === 'DELETE' ? null : 'Type DELETE to confirm'),
+  });
+  if (r.value !== 'ok') return;
+  await DB.clear('employees'); await DB.clear('records');
+  S.employees = []; S.records = [];
+  renderHome(); renderAdmin(); toast('All data deleted');
+}
+
+async function showStorage() {
+  const el = $('#sStore'); if (!el) return;
+  let txt = `${S.employees.length} employees, ${S.records.length} records.`;
+  try {
+    const persisted = await navigator.storage?.persisted?.();
+    txt += persisted ? ' Storage is protected from automatic clearing.' : ' Add this app to the Home Screen so storage isn’t cleared.';
+  } catch {}
+  el.textContent = txt;
+}
+
+/* ---------------- wiring ---------------- */
+$('#btnIn').onclick = () => startFlow('in');
+$('#btnOut').onclick = () => startFlow('out');
+$('#btnAdd').onclick = () => openAdd('home');
+$('#btnAdmin').onclick = openAdmin;
+$('#adminClose').onclick = () => { showScreen('home'); renderHome(); };
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => { adminTab = t.dataset.tab; renderAdmin(); });
+$('#scanCancel').onclick = () => { if (scanCtl) scanCtl.cancelled = true; };
+$('#addCancel').onclick = () => { if (addReturn === 'admin') { showScreen('admin'); renderAdmin(); } else showScreen('home'); };
+$('#addNext').onclick = async () => {
+  if (reenrolId) { runEnrol(); return; }
+  const first = titleCase($('#fFirst').value), last = titleCase($('#fLast').value);
+  if (!first || !last) { $('#addErr').textContent = 'Enter a first name and last name.'; return; }
+  const dup = S.employees.find(e => e.active && e.first.toLowerCase() === first.toLowerCase() && e.last.toLowerCase() === last.toLowerCase());
+  if (dup && !(await confirmBox('Name already registered', `${first} ${last} is already registered as ${dup.id}. Only continue if this is a different person with the same name.`, 'Continue'))) return;
+  runEnrol(first, last);
+};
+$('#fFirst').addEventListener('keydown', e => { if (e.key === 'Enter') $('#fLast').focus(); });
+$('#fLast').addEventListener('keydown', e => { if (e.key === 'Enter') $('#addNext').click(); });
+
+let wakeLock = null;
+async function keepAwake() {
+  try { if ('wakeLock' in navigator && document.visibilityState === 'visible') wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { keepAwake(); autoSignOut(); }
+  else { if (scanCtl) scanCtl.cancelled = true; stopCamera(); }
+});
+
+/* ---------------- start ---------------- */
+(async function init() {
+  try {
+    await DB.open();
+    const [emps, recs, sets] = await Promise.all([DB.all('employees'), DB.all('records'), DB.all('settings')]);
+    S.employees = emps; S.records = recs;
+    S.settings = { ...DEFAULTS, ...(sets.find(s => s.id === 'app') || {}) };
+  } catch (e) {
+    $('#engineStatus').textContent = 'Storage unavailable — records can’t be saved in this browser mode.';
+  }
+  try { await navigator.storage?.persist?.(); } catch {}
+  renderHome(); tickClock();
+  setInterval(tickClock, 1000);
+  setInterval(autoSignOut, 30000);
+  await autoSignOut();
+  keepAwake();
+  loadEngine().catch(() => {});
+})();
+</script>
+</body>
+</html>
