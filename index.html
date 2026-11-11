@@ -66,9 +66,14 @@ button{font:inherit;cursor:pointer;border:0}
 .ghost{background:var(--tint);color:var(--ink);border:2px solid var(--border);border-radius:12px;padding:12px 22px;font-size:18px;font-weight:600}
 .camwrap{position:relative;flex:1;border-radius:24px;overflow:hidden;background:#000}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-.oval{position:absolute;left:50%;top:48%;width:min(46vh,62vw);aspect-ratio:3/4;transform:translate(-50%,-50%);
-  border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.5);border:5px solid rgba(255,255,255,.75);transition:border-color 200ms ease}
-.oval.good{border-color:#7FBF8E}
+.oval{position:absolute;left:50%;top:48%;width:min(48vh,58vw);aspect-ratio:1/1;transform:translate(-50%,-50%);
+  border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.55);border:3px solid rgba(255,255,255,.35);transition:border-color 200ms ease}
+.oval.good{border-color:rgba(76,200,112,.7)}
+.ring{position:absolute;left:50%;top:48%;width:calc(min(48vh,58vw) * 1.28);aspect-ratio:1/1;transform:translate(-50%,-50%);pointer-events:none;overflow:visible}
+.ring line{stroke:rgba(255,255,255,.4);stroke-width:2.4;stroke-linecap:round;transition:stroke 180ms ease,stroke-width 220ms var(--ease-out)}
+.ring line.on{stroke:#4CC870;stroke-width:3.6}
+.ring.done{animation:ringDone 420ms var(--ease-out)}
+@keyframes ringDone{0%{transform:translate(-50%,-50%) scale(1)}45%{transform:translate(-50%,-50%) scale(1.04)}100%{transform:translate(-50%,-50%) scale(1)}}
 .bar{height:8px;background:var(--tint2);border-radius:99px;margin:14px 6px 0;overflow:hidden}
 .bar>div{height:100%;width:100%;background:var(--green);transform:scaleX(0);transform-origin:left;transition:transform 200ms var(--ease-out)}
 .scanmsg{text-align:center;font-size:clamp(24px,3.4vw,34px);font-weight:700;margin-top:14px;min-height:42px}
@@ -191,6 +196,7 @@ body.intro .clockwrap{animation:fadeIn 360ms var(--ease-out) both}
   #scan.active .camwrap,#add.active .formcard,#admin.active .adminbody,.msgcard.enter,.msgcard.enter .msgicon,body.intro .big,.toast{animation-name:fadeIn}
   .big:active,.btn:active,.add:active,.adminbtn:active,.ghost:active,.tab:active,.msgbtns button:active,.modalcard,.modal.show .modalcard{transform:none}
   .dots span.now{transform:none}
+  .ring.done{animation:none}
 }
 </style>
 </head>
@@ -233,8 +239,9 @@ body.intro .clockwrap{animation:fadeIn 360ms var(--ease-out) both}
   <div class="camwrap">
     <video id="video" playsinline muted autoplay></video>
     <div id="oval" class="oval"></div>
+    <svg id="ring" class="ring" viewBox="0 0 200 200" aria-hidden="true"></svg>
   </div>
-  <div class="bar"><div id="scanBar"></div></div>
+  <div class="bar hidden"><div id="scanBar"></div></div>
   <div id="scanMsg" class="scanmsg">Starting camera…</div>
   <div id="scanHint" class="scanhint"></div>
   <div id="poseDots" class="dots hidden"></div>
@@ -623,13 +630,14 @@ function assess(f) {
 let scanCtl = null;
 const scanMsg = t => { $('#scanMsg').textContent = t; };
 const scanHint = t => { $('#scanHint').textContent = t || ''; };
-const scanProgress = p => { $('#scanBar').style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`; $('#oval').classList.toggle('good', p > 0); };
+const scanProgress = p => { if (enrolling) return; ringProgress(p); $('#oval').classList.toggle('good', p > 0); };
 const dbg = t => { const d = $('#debug'); d.classList.toggle('hidden', !S.settings.debug); if (S.settings.debug) d.textContent = t; };
 
 async function prepareScan(title, ctl) {
   showScreen('scan');
   $('#scanTitle').textContent = title;
-  scanMsg('Starting camera…'); scanHint(''); scanProgress(0); dbg('');
+  ringReset(); $('#oval').classList.remove('good');
+  scanMsg('Starting camera…'); scanHint(''); dbg('');
   try { await startCamera(); }
   catch (e) { return { error: 'camera', detail: e }; }
   if (!engineReady) {
@@ -814,6 +822,45 @@ function openAdd(returnTo = 'home', emp = null) {
   if (!emp) setTimeout(() => $('#fFirst').focus(), 100);
 }
 
+/* ---------- Face-ID-style ring ---------- */
+const RING_N = 72;                       // tick marks around the circle
+const ringEl = $('#ring');
+ringEl.innerHTML = Array.from({ length: RING_N }, (_, i) => {
+  const a = (i / RING_N) * 2 * Math.PI, r1 = 82, r2 = 94;
+  return `<line x1="${(100 + r1 * Math.cos(a)).toFixed(2)}" y1="${(100 + r1 * Math.sin(a)).toFixed(2)}" x2="${(100 + r2 * Math.cos(a)).toFixed(2)}" y2="${(100 + r2 * Math.sin(a)).toFixed(2)}"/>`;
+}).join('');
+const ticks = [...ringEl.querySelectorAll('line')];
+const ringOn = new Array(RING_N).fill(false);
+let enrolling = false;
+function ringReset() { ringOn.fill(false); ticks.forEach(t => t.classList.remove('on')); ringEl.classList.remove('done'); }
+function ringSet(i) { i = ((i % RING_N) + RING_N) % RING_N; if (!ringOn[i]) { ringOn[i] = true; ticks[i].classList.add('on'); } }
+const ringCount = () => ringOn.reduce((n, v) => n + (v ? 1 : 0), 0);
+// sign-in progress: ticks fill clockwise from the top
+function ringProgress(p) {
+  const n = Math.round(Math.max(0, Math.min(1, p)) * RING_N), top = Math.round(RING_N * 0.75);
+  for (let k = 0; k < RING_N; k++) { const i = (top + k) % RING_N; ringOn[i] = k < n; ticks[i].classList.toggle('on', k < n); }
+}
+async function ringFinish() {
+  const left = ringOn.map((v, i) => (v ? -1 : i)).filter(i => i >= 0);
+  for (const i of left) { ringSet(i); await wait(12); }
+  ringEl.classList.add('done');
+}
+
+// Where the head is pointing, in screen terms (mirrored preview): x right, y down.
+// Uses the nose tip relative to the face mesh, so it doesn't depend on angle conventions.
+function headDir(f) {
+  const mesh = f.mesh;
+  if (mesh?.length > 10) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of mesh) { if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0]; if (p[1] < minY) minY = p[1]; if (p[1] > maxY) maxY = p[1]; }
+    const nose = f.annotations?.noseTip?.[0] || mesh[1];
+    const w = maxX - minX || 1, h = maxY - minY || 1;
+    return { x: -((nose[0] - (minX + maxX) / 2) / w), y: (nose[1] - (minY + maxY) / 2) / h };
+  }
+  const a = f.rotation?.angle || { yaw: 0, pitch: 0 };
+  return { x: a.yaw * 0.35, y: -a.pitch * 0.35 };
+}
+
 async function captureFrames(ctl, test, need = 3, timeoutMs = 25000) {
   const start = performance.now(); let buf = [];
   while (!ctl.cancelled) {
@@ -823,15 +870,14 @@ async function captureFrames(ctl, test, need = 3, timeoutMs = 25000) {
     await raf();
     if (ctl.cancelled) break;
     const f = res?.face?.[0];
-    if (!f) { buf = []; scanProgress(0); scanHint('No face found — look at the camera'); continue; }
+    if (!f) { buf = []; scanHint('No face found — look at the camera'); continue; }
     const q = assess(f);
-    if (!q.ok) { buf = []; scanProgress(0); scanHint(q.msg); continue; }
+    if (!q.ok) { buf = []; scanHint(q.msg); continue; }
     if (!f.embedding?.length) continue;
     dbg(`yaw ${q.a.yaw.toFixed(2)}  pitch ${q.a.pitch.toFixed(2)}  real ${(f.real ?? 0).toFixed(2)}  live ${(f.live ?? 0).toFixed(2)}`);
-    if (!test(q.a)) { buf = []; scanProgress(0); scanHint(''); continue; }
+    if (!test(q.a)) { buf = []; scanHint('Look straight at the camera'); continue; }
     scanHint('Hold still');
-    buf.push({ emb: f.embedding, a: q.a, real: f.real ?? 1, live: f.live ?? 1 });
-    scanProgress(buf.length / need);
+    buf.push({ emb: f.embedding, a: q.a, dir: headDir(f), real: f.real ?? 1, live: f.live ?? 1 });
     if (buf.length >= need) return buf;
   }
   return 'cancel';
@@ -840,46 +886,67 @@ async function captureFrames(ctl, test, need = 3, timeoutMs = 25000) {
 async function runEnrol(first, last) {
   const ctl = { cancelled: false }; scanCtl = ctl;
   const existing = reenrolId ? empById(reenrolId) : null;
+  const fail = text => showMsg({ icon: '!', title: 'Registration didn’t finish', text, buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 15000 });
   try {
     const prep = await prepareScan(existing ? `Re-registering ${fullName(existing)}` : `Registering ${first} ${last}`, ctl);
     if (prep?.cancelled) return;
     if (prep?.error) { await showScanError(prep); return; }
+    enrolling = true; ringReset();
 
-    const dots = $('#poseDots'); dots.classList.remove('hidden');
-    let base = { yaw: 0, pitch: 0 }, sideSign = 0, tiltSign = 0;
-    const straight = a => Math.abs(a.yaw) < 0.25 && Math.abs(a.pitch) < 0.4;
-    const poses = [
-      { msg: 'Look straight at the camera', test: straight },
-      { msg: 'Keep looking straight — hold still', test: straight },
-      { msg: 'Turn your head slightly to one side', test: a => { const d = a.yaw - base.yaw; return Math.abs(d) > 0.2 && Math.abs(d) < 0.75; }, after: a => { sideSign = Math.sign(a.yaw - base.yaw); } },
-      { msg: 'Now turn slightly to the other side', test: a => { const d = a.yaw - base.yaw; return Math.abs(d) > 0.2 && Math.abs(d) < 0.75 && Math.sign(d) === -sideSign; } },
-      { msg: 'Tilt your head slightly up or down', test: a => { const d = a.pitch - base.pitch; return Math.abs(d) > 0.12 && Math.abs(d) < 0.6 && Math.abs(a.yaw - base.yaw) < 0.3; }, after: a => { tiltSign = Math.sign(a.pitch - base.pitch); } },
-      { msg: 'Now tilt slightly the other way', test: a => { const d = a.pitch - base.pitch; return Math.abs(d) > 0.12 && Math.abs(d) < 0.6 && Math.abs(a.yaw - base.yaw) < 0.3 && Math.sign(d) === -tiltSign; } },
-    ];
-    const samples = []; const straightFrames = [];
-    for (let i = 0; i < poses.length; i++) {
-      dots.innerHTML = poses.map((_, j) => `<span class="${j < i ? 'done' : j === i ? 'now' : ''}"></span>`).join('');
-      scanMsg(poses[i].msg); scanProgress(0);
-      const frames = await captureFrames(ctl, poses[i].test);
-      if (frames === 'cancel') return;
-      if (!frames) {
-        await showMsg({ icon: '!', title: 'Registration didn’t finish', text: 'Stand in good light, fill the oval with your face and follow each instruction. Please try again.', buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 15000 });
-        return;
+    // 1. Straight on: sets the centre point and the first two templates
+    scanMsg('Position your face in the circle');
+    const s1 = await captureFrames(ctl, a => Math.abs(a.yaw) < 0.25 && Math.abs(a.pitch) < 0.4, 4);
+    if (s1 === 'cancel') return;
+    if (!s1) { await fail('Stand in good light, fill the circle with your face and look straight at the camera. Please try again.'); return; }
+    const base = { x: avg(s1.map(f => f.dir.x)), y: avg(s1.map(f => f.dir.y)) };
+    const samples = [meanEmbedding(s1.slice(0, 2).map(f => f.emb)), meanEmbedding(s1.slice(2).map(f => f.emb))];
+    const liveFrames = [...s1];
+    $('#oval').classList.add('good');
+
+    // 2. Move the head in a circle: ticks fill where the head points; a template is kept for each of 8 directions
+    scanMsg('Move your head slowly to complete the circle');
+    const MIN = 0.06, MAX = 0.45, SPREAD = 3;
+    const sectorBuf = Array.from({ length: 8 }, () => []);
+    const sectors = new Array(8).fill(null);
+    const start = performance.now();
+    let lastMove = performance.now();
+    while (!ctl.cancelled && performance.now() - start < 45000 && ringCount() < RING_N * 0.92) {
+      let res;
+      try { res = await human.detect(video); } catch { await wait(100); continue; }
+      await raf();
+      if (ctl.cancelled) break;
+      const f = res?.face?.[0];
+      if (!f) { scanHint('Keep your face in the circle'); continue; }
+      const q = assess(f);
+      if (!q.ok) { scanHint(q.msg === 'Centre your face in the oval' ? 'Keep your face in the circle' : q.msg); continue; }
+      const d = headDir(f), dx = d.x - base.x, dy = d.y - base.y, mag = Math.hypot(dx, dy);
+      dbg(`dir x ${dx.toFixed(3)}  y ${dy.toFixed(3)}  move ${mag.toFixed(3)}  ring ${ringCount()}/${RING_N}  real ${(f.real ?? 0).toFixed(2)}`);
+      if (mag > MAX) { scanHint('Smaller movements — keep looking towards the iPad'); continue; }
+      if (mag < MIN) { scanHint(performance.now() - lastMove > 2500 ? 'Like drawing a circle with your nose' : ''); continue; }
+      lastMove = performance.now(); scanHint('');
+      let deg = Math.atan2(dy, dx) * 180 / Math.PI; if (deg < 0) deg += 360;
+      const idx = Math.round(deg / (360 / RING_N));
+      for (let k = -SPREAD; k <= SPREAD; k++) ringSet(idx + k);
+      liveFrames.push({ real: f.real ?? 1, live: f.live ?? 1 });
+      const sec = Math.round(deg / 45) % 8;
+      if (!sectors[sec] && f.embedding?.length) {
+        sectorBuf[sec].push(f.embedding);
+        if (sectorBuf[sec].length >= 2) sectors[sec] = meanEmbedding(sectorBuf[sec]);
       }
-      const last = frames[frames.length - 1].a;
-      if (i < 2) {
-        straightFrames.push(...frames);
-        base = { yaw: avg(straightFrames.map(f => f.a.yaw)), pitch: avg(straightFrames.map(f => f.a.pitch)) };
-      }
-      poses[i].after?.(last);
-      samples.push(meanEmbedding(frames.map(f => f.emb)));
-      scanProgress(1); scanHint('✓');
-      await wait(450);
     }
-    dots.innerHTML = poses.map(() => '<span class="done"></span>').join('');
+    if (ctl.cancelled) return;
+    const got = sectors.filter(Boolean);
+    if (ringCount() < RING_N * 0.92 || got.length < 4) {
+      await fail('Move your head slowly in a full circle, like drawing a circle with your nose, keeping your face inside the circle. Please try again.');
+      return;
+    }
+    samples.push(...got);
+    await ringFinish();
+    scanMsg('Face registered'); scanHint('');
+    await wait(600);
 
     if (S.settings.liveness) {
-      const real = avg(straightFrames.map(f => f.real)), live = avg(straightFrames.map(f => f.live));
+      const real = avg(liveFrames.map(f => f.real)), live = avg(liveFrames.map(f => f.live));
       if (real < S.settings.realMin || live < S.settings.liveMin) {
         await showMsg({ icon: '!', title: 'Face check failed', text: 'Registration needs a real face in front of the camera — not a photo or screen. Please try again.', buttons: [{ label: 'OK', value: 'ok', cls: 'primary' }], timeout: 15000 });
         return;
@@ -912,7 +979,7 @@ async function runEnrol(first, last) {
     try { await saveSettings(); } catch {}
     await showMsg({ icon: '✓', ok: true, title: existing ? 'Face re-registered' : `${fullName(emp)} added`, text: `Employee ID ${emp.id}. You can now sign in with your face.`, timeout: 4500 });
   } finally {
-    $('#poseDots').classList.add('hidden');
+    enrolling = false;
     scanCtl = null; reenrolId = null;
     if (addReturn === 'admin') { showScreen('admin'); renderAdmin(); } else { showScreen('home'); renderHome(); }
     scheduleCamStop();
