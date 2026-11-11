@@ -50,7 +50,9 @@ button{font:inherit;cursor:pointer;border:0}
 .engine{text-align:center;color:var(--muted);font-size:14px;min-height:20px;margin-top:10px}
 .foot{display:flex;justify-content:space-between;align-items:center;padding-top:12px}
 .add{background:var(--tint);color:var(--green);border:2px solid var(--green);border-radius:14px;padding:14px 26px;font-size:20px;font-weight:700}
-.link{background:none;color:var(--muted);font-size:16px;padding:14px 10px;text-decoration:underline}
+.adminbtn{background:var(--white);color:var(--charcoal);border:2px solid var(--border);border-radius:14px;padding:14px 22px;font-size:18px;font-weight:700}
+.jobbanner{display:inline-flex;gap:12px;align-items:baseline;margin-top:14px;background:var(--tint);border:1px solid var(--border);border-radius:14px;padding:10px 20px;font-size:clamp(20px,2.6vw,28px);font-weight:700;color:var(--ink)}
+.jobbanner b{color:var(--green)}
 @media (orientation:portrait){
   .bigbtns{grid-template-columns:1fr;max-height:none}
 }
@@ -139,6 +141,10 @@ tbody tr:nth-child(even) td{background:#FAFCFA}
 .setcard input[type=range]{width:100%}
 .toggle{display:flex;align-items:center;gap:10px;font-size:16px}
 .toggle input{width:24px;height:24px;accent-color:var(--green)}
+td.cell{cursor:pointer;min-width:110px}
+.ent{color:var(--blue);white-space:nowrap;font-variant-numeric:tabular-nums;padding:2px 0}
+.ent+.ent{border-top:1px dashed var(--border)}
+.addc{color:var(--border);font-size:20px}
 .valline{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:700}
 
 /* ---------- Modal ---------- */
@@ -167,6 +173,7 @@ tbody tr:nth-child(even) td{background:#FAFCFA}
   <div class="clockwrap">
     <div id="clock" class="clock">--:--</div>
     <div id="date" class="date"></div>
+    <div id="jobBanner" class="jobbanner hidden"></div>
   </div>
   <div class="bigbtns">
     <button id="btnIn" class="big in">SIGN IN<small>Look at the camera</small></button>
@@ -175,7 +182,7 @@ tbody tr:nth-child(even) td{background:#FAFCFA}
   <div id="engineStatus" class="engine"></div>
   <footer class="foot">
     <button id="btnAdd" class="add">+ Add New</button>
-    <button id="btnAdmin" class="link">Records</button>
+    <button id="btnAdmin" class="adminbtn" aria-label="Admin">&#128274; Admin</button>
   </footer>
 </section>
 
@@ -227,7 +234,7 @@ tbody tr:nth-child(even) td{background:#FAFCFA}
 <!-- ================= ADMIN ================= -->
 <section id="admin" class="screen">
   <div class="adminhead">
-    <h1>Attendance records</h1>
+    <h1>Admin</h1>
     <div class="tabs">
       <button class="tab on" data-tab="records">Records</button>
       <button class="tab" data-tab="staff">Employees</button>
@@ -295,7 +302,10 @@ const DEFAULTS = {
   liveMin: 0.5,
   learn: true,       // add confirmed scans to the person's templates
   debug: false,
-  adminPin: '',
+  adminPin: '',       // Admin passkey, created on first open
+  jobId: '', jobName: '', jobNumber: '',   // current job, shown on the kiosk
+  localJobs: [],
+  deviceId: '',
 };
 const MAX_LEARNED = 10;
 
@@ -395,6 +405,9 @@ function renderHome() {
   const st = S.settings;
   $('#companyName').textContent = st.company || '';
   $('#appName').textContent = st.appName || '';
+  const jb = $('#jobBanner');
+  if (st.jobId && st.jobName) { jb.innerHTML = `${st.jobNumber ? `<b>${esc(st.jobNumber)}</b>` : ''}<span>${esc(st.jobName)}</span>`; jb.classList.remove('hidden'); }
+  else jb.classList.add('hidden');
   const logo = $('#logo');
   if (st.logo) { logo.src = st.logo; logo.classList.remove('hidden'); } else logo.classList.add('hidden');
   $('#onsiteCount').textContent = S.records.filter(r => !r.out).length;
@@ -405,6 +418,11 @@ function tickClock() {
   $('#clock').textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
   $('#date').textContent = n.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+/* ---------------- record helpers ---------------- */
+const METHOD = { face: 'Face', manual: 'Manual', auto: 'Auto (23:59)' };
+const wcKey = k => { const d = parseKey(k); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dKey(d); };
+const jobFields = () => ({ jobId: S.settings.jobId || '', jobName: S.settings.jobName || '', jobNumber: S.settings.jobNumber || '' });
 
 /* ---------------- message screen ---------------- */
 let msgResolve = null, msgTimer = null;
@@ -696,7 +714,7 @@ async function doAction(mode, emp) {
       if (v === 'out') await signOut(open, emp, now);
       return;
     }
-    const rec = { id: uid(), empId: emp.id, date: dKey(now), in: now.toISOString(), out: null, inSrc: 'face', outSrc: null, edits: [] };
+    const rec = { id: uid(), empId: emp.id, ...jobFields(), date: dKey(now), in: now.toISOString(), out: null, inSrc: 'face', outSrc: null, edits: [] };
     S.records.push(rec); await DB.put('records', rec);
     renderHome();
     await showMsg({ icon: '✓', ok: true, title: `You are signed in — ${hm(rec.in)}`, text: fullName(emp), timeout: 3500 });
@@ -843,10 +861,16 @@ function nextEmpId() {
   return 'E' + String(max + 1).padStart(3, '0');
 }
 
-/* ---------------- admin ---------------- */
+/* ---------------- admin: records, employees, settings (all on this iPad) ---------------- */
+const NOJOB = '__nojob__';
 let adminTab = 'records', adminIdleTimer = null;
-const weekStart = d => { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); return x; };
-const filt = { emp: '', from: dKey(weekStart(new Date())), to: dKey(new Date(weekStart(new Date()).getTime() + 6 * 864e5)) };
+const view = { jobId: '', wc: '' };
+const allJobs = () => S.settings.localJobs || [];
+const currentJob = () => allJobs().find(j => j.id === S.settings.jobId) || null;
+const jobLabel = j => (j.number ? j.number + ' · ' : '') + j.name;
+const addDaysK = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return dKey(d); };
+const shortDateK = k => parseKey(k).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const dayHeadK = k => parseKey(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
 function armAdminIdle() {
   clearTimeout(adminIdleTimer);
@@ -854,75 +878,259 @@ function armAdminIdle() {
 }
 ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (currentScreen === 'admin') armAdminIdle(); }));
 
+/* ---------- passkey ---------- */
+let pinFails = 0, pinLockUntil = 0;
 async function openAdmin() {
-  if (S.settings.adminPin) {
+  const st = S.settings;
+  if (!st.adminPin) {
     const r = await modal({
-      title: 'Enter admin PIN',
+      title: 'Create admin passkey',
+      html: `<p style="margin-top:0;font-size:16px;line-height:1.5">Choose a passkey for the Admin area. You’ll need it every time you open Admin.</p>
+        <div class="field"><label>Passkey</label><input name="p1" type="password" inputmode="numeric" autocomplete="off"></div>
+        <div class="field"><label>Enter it again</label><input name="p2" type="password" inputmode="numeric" autocomplete="off"></div>`,
+      buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Save passkey', value: 'ok', cls: 'primary' }],
+      validate: (v, d) => (d.p1.length < 4 ? 'Use at least 4 characters' : d.p1 !== d.p2 ? 'The passkeys don’t match' : null),
+    });
+    if (r.value !== 'ok') return;
+    st.adminPin = r.data.p1; await saveSettings(); toast('Passkey saved');
+  } else {
+    const r = await modal({
+      title: 'Admin passkey',
       html: '<div class="field"><input name="pin" type="password" inputmode="numeric" autocomplete="off"></div>',
       buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Open', value: 'ok', cls: 'primary' }],
-      validate: (v, d) => (d.pin === S.settings.adminPin ? null : 'Incorrect PIN'),
+      validate: (v, d) => {
+        if (Date.now() < pinLockUntil) return `Too many attempts — try again in ${Math.ceil((pinLockUntil - Date.now()) / 1000)} seconds`;
+        if (d.pin === st.adminPin) { pinFails = 0; return null; }
+        if (++pinFails >= 5) { pinFails = 0; pinLockUntil = Date.now() + 60000; return 'Too many attempts — try again in 60 seconds'; }
+        return 'Incorrect passkey';
+      },
     });
     if (r.value !== 'ok') return;
   }
   await autoSignOut();
+  adminTab = 'records';
   showScreen('admin'); renderAdmin();
-}
-
-function statusTags(r) {
-  const t = [];
-  if (!r.out) t.push('<span class="tag">On site</span>');
-  if (r.outSrc === 'auto') t.push('<span class="tag dark">Auto sign-out</span>');
-  if (r.inSrc === 'manual' || r.outSrc === 'manual') t.push('<span class="tag grey">Manual</span>');
-  if (r.edits?.length) t.push('<span class="tag grey">Edited</span>');
-  return t.join('');
-}
-
-function filteredRecords() {
-  return S.records
-    .filter(r => (!filt.emp || r.empId === filt.emp) && (!filt.from || r.date >= filt.from) && (!filt.to || r.date <= filt.to))
-    .sort((a, b) => (a.date === b.date ? a.in.localeCompare(b.in) : b.date.localeCompare(a.date)));
 }
 
 function renderAdmin() {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === adminTab));
-  const body = $('#adminBody');
-  if (adminTab === 'records') body.innerHTML = recordsHTML();
-  else if (adminTab === 'staff') body.innerHTML = staffHTML();
-  else body.innerHTML = settingsHTML();
-  bindAdmin();
+  $('#adminBody').innerHTML = adminTab === 'records' ? recordsHTML() : adminTab === 'staff' ? staffHTML() : settingsHTML();
+  if (adminTab === 'records') bindRecords(); else bindAdmin();
+}
+
+/* ---------- records tab: current job + weeks commencing ---------- */
+function jobGroups() {
+  const ids = new Set(allJobs().map(j => j.id));
+  const g = {};
+  S.records.forEach(r => { const k = r.jobId && ids.has(r.jobId) ? r.jobId : NOJOB; (g[k] = g[k] || []).push(r); });
+  return g;
 }
 
 function recordsHTML() {
+  const cur = currentJob();
+  const groups = jobGroups();
+  const jobs = allJobs().filter(j => j.id === S.settings.jobId || groups[j.id]);
+  const valid = id => (id === NOJOB ? !!groups[NOJOB] : jobs.some(j => j.id === id));
+  if (!view.jobId || !valid(view.jobId)) view.jobId = cur ? cur.id : (jobs[0]?.id || (groups[NOJOB] ? NOJOB : ''));
   const onsite = S.records.filter(r => !r.out);
-  const emps = [...S.employees].sort((a, b) => fullName(a).localeCompare(fullName(b)));
-  const rows = filteredRecords();
+
+  const jobChips = jobs.map(j => `<button class="btn sm ${j.id === view.jobId ? 'primary' : ''}" data-vjob="${esc(j.id)}">${esc(jobLabel(j))}${j.id === S.settings.jobId ? ' (current)' : ''}</button>`);
+  if (groups[NOJOB]) jobChips.push(`<button class="btn sm ${view.jobId === NOJOB ? 'primary' : ''}" data-vjob="${NOJOB}">No job</button>`);
+
+  let grid = '<div class="empty">No sign-ins yet.</div>';
+  if (view.jobId) {
+    const job = allJobs().find(j => j.id === view.jobId);
+    const recs = groups[view.jobId] || [];
+    const weeks = [...new Set(recs.map(r => wcKey(r.date)))].sort().reverse();
+    const thisWeek = wcKey(dKey(new Date()));
+    if (view.jobId === S.settings.jobId && !weeks.includes(thisWeek)) weeks.unshift(thisWeek);
+    if (!weeks.length) weeks.push(thisWeek);
+    if (!view.wc || !weeks.includes(view.wc)) view.wc = weeks[0];
+    const weekRecs = recs.filter(r => wcKey(r.date) === view.wc);
+    const days = [...Array(7)].map((_, i) => addDaysK(view.wc, i));
+    const people = [...new Set(weekRecs.map(r => r.empId))]
+      .map(id => ({ id, name: empById(id) ? fullName(empById(id)) : id }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    view._people = people;
+    const autos = weekRecs.filter(r => r.outSrc === 'auto').length;
+    grid = `
+      <div class="chips" style="margin-bottom:12px">${weeks.map(w => {
+        const n = recs.filter(r => wcKey(r.date) === w);
+        return `<button class="btn sm ${w === view.wc ? 'primary' : ''}" data-vwc="${w}">w/c ${esc(shortDateK(w))} · ${new Set(n.map(r => r.empId)).size} people</button>`;
+      }).join('')}</div>
+      <div class="filters">
+        <div style="flex:1"><div style="font-weight:700;font-size:18px">${job ? esc(jobLabel(job)) : 'No job'} — w/c ${esc(parseKey(view.wc).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</div>
+          <div style="color:var(--muted);font-size:14px">${people.length} people · ${weekRecs.length} sign-ins · ${autos} auto sign-outs</div></div>
+        ${job && job.id !== S.settings.jobId ? '<button class="btn sm" id="vEditJob">Edit job</button>' : ''}
+        <button class="btn sm" id="vAdd">+ Add entry</button>
+        <button class="btn sm primary" id="vCsv">Export CSV</button>
+      </div>
+      ${people.length ? `<div class="tablewrap"><table>
+        <thead><tr><th>Employee</th>${days.map(d => `<th>${esc(dayHeadK(d))}</th>`).join('')}</tr></thead>
+        <tbody>${people.map((p, pi) => `<tr><td style="white-space:nowrap;font-weight:600">${esc(p.name)}<div style="font-weight:400;color:var(--muted);font-size:13px">${esc(p.id)}</div></td>${days.map(d => {
+          const es = weekRecs.filter(r => r.empId === p.id && r.date === d).sort((a, b) => a.in.localeCompare(b.in));
+          return `<td class="cell" data-vp="${pi}" data-vd="${d}">${es.length ? es.map(r => `<div class="ent" data-vid="${esc(r.id)}">${hm(r.in)}–${r.out ? hm(r.out) : '<span class="tag">On site</span>'}${r.outSrc === 'auto' ? '<span class="tag dark">Auto</span>' : ''}${r.edits?.length || r.inSrc === 'manual' ? '<span class="tag grey">Edited</span>' : ''}</div>`).join('') : '<span class="addc">+</span>'}</td>`;
+        }).join('')}</tr>`).join('')}</tbody>
+      </table></div>
+      <p style="color:var(--muted);font-size:14px">Tap a time to edit it, or an empty day to add one. <b>Auto</b> = not signed out, closed at 23:59.</p>`
+      : '<div class="empty">No sign-ins for this week.</div>'}`;
+  }
+
   return `
+    <div class="bar-title">Current job</div>
+    <div class="setcard" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>${cur ? `<div style="font-size:15px;font-weight:700;color:var(--green)">${esc(cur.number || 'No project number')}</div><div style="font-size:22px;font-weight:700">${esc(cur.name)}</div>`
+        : '<div style="font-size:20px;font-weight:700">No job set</div>'}
+        <p style="margin:6px 0 0">Shown on the kiosk screen. New sign-ins are filed under this job.</p></div>
+      <button class="btn primary" id="jChange">${cur ? 'Change job' : 'Set job'}</button>
+    </div>
     <div class="bar-title">On site now (${onsite.length})</div>
     ${onsite.length ? `<div class="chips">${onsite.map(r => { const e = empById(r.empId); return `<div class="chip"><b>${esc(e ? fullName(e) : r.empId)}</b> · in ${hm(r.in)}</div>`; }).join('')}</div>` : '<div class="empty">No one is signed in.</div>'}
-    <div class="bar-title">Sign-in records</div>
-    <div class="filters">
-      <div class="field"><label>Employee</label><select id="fEmp"><option value="">All employees</option>${emps.map(e => `<option value="${esc(e.id)}" ${filt.emp === e.id ? 'selected' : ''}>${esc(fullName(e))} (${esc(e.id)})</option>`).join('')}</select></div>
-      <div class="field"><label>From</label><input type="date" id="fFrom" value="${filt.from}"></div>
-      <div class="field"><label>To</label><input type="date" id="fTo" value="${filt.to}"></div>
-      <button class="btn sm" id="fWeek">This week</button>
-      <button class="btn sm" id="fLastWeek">Last week</button>
-      <span style="flex:1"></span>
-      <button class="btn sm" id="addManual">+ Add manual entry</button>
-      <button class="btn sm primary" id="exportCsv">Export CSV</button>
-    </div>
-    ${rows.length ? `<div class="tablewrap"><table>
-      <thead><tr><th>Date</th><th>Employee</th><th>ID</th><th>Sign in</th><th>Sign out</th><th>Status</th><th></th></tr></thead>
-      <tbody>${rows.map(r => { const e = empById(r.empId); return `<tr>
-        <td>${esc(fmtDate(r.date))}</td>
-        <td>${esc(e ? fullName(e) : 'Unknown')}</td>
-        <td>${esc(r.empId)}</td>
-        <td class="v">${hm(r.in)}</td>
-        <td class="v">${r.out ? hm(r.out) : '—'}</td>
-        <td>${statusTags(r)}</td>
-        <td><button class="btn sm" data-edit="${r.id}">Edit</button></td></tr>`; }).join('')}</tbody>
-    </table></div>` : '<div class="empty">No records for these filters.</div>'}`;
+    <div class="bar-title">Sign-ins by week commencing</div>
+    ${jobChips.length > 1 ? `<div class="chips" style="margin-bottom:10px">${jobChips.join('')}</div>` : ''}
+    ${grid}`;
 }
 
+function bindRecords() {
+  document.querySelectorAll('[data-vjob]').forEach(b => b.onclick = () => { view.jobId = b.dataset.vjob; view.wc = ''; renderAdmin(); });
+  document.querySelectorAll('[data-vwc]').forEach(b => b.onclick = () => { view.wc = b.dataset.vwc; renderAdmin(); });
+  const on = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
+  on('#jChange', changeJob);
+  on('#vEditJob', () => editPastJob(allJobs().find(j => j.id === view.jobId)));
+  on('#vAdd', () => { const t = dKey(new Date()); editEntry(null, { date: t >= view.wc && t <= addDaysK(view.wc, 6) ? t : view.wc }); });
+  on('#vCsv', exportWeekCsv);
+  document.querySelectorAll('td.cell').forEach(td => td.onclick = e => {
+    const ent = e.target.closest('.ent');
+    if (ent) { editEntry(S.records.find(r => r.id === ent.dataset.vid)); return; }
+    editEntry(null, { date: td.dataset.vd, empId: view._people[+td.dataset.vp]?.id });
+  });
+}
+
+/* ---------- jobs ---------- */
+async function renameJob(job, name, number) {
+  job.name = name; job.number = number;
+  for (const rec of S.records.filter(x => x.jobId === job.id)) { rec.jobName = name; rec.jobNumber = number; await DB.put('records', rec); }
+}
+
+async function changeJob() {
+  const st = S.settings, cur = currentJob();
+  const r = await modal({
+    title: cur ? 'Change job' : 'Set job',
+    html: `<div class="field"><label>Project number</label><input name="number" value="${esc(cur?.number || '')}" placeholder="e.g. CG179"></div>
+      <div class="field"><label>Job name</label><input name="name" value="${esc(cur?.name || '')}" placeholder="e.g. Damfield Lane, Maghull"></div>
+      ${cur ? `<p style="color:var(--muted);font-size:14px;line-height:1.5;margin:0"><b>Correct this job</b> fixes a typo — past sign-ins are updated too.<br><b>Start new job</b> files new sign-ins under the new job; past sign-ins stay under ${esc(jobLabel(cur))}.</p>` : ''}`,
+    buttons: cur
+      ? [{ label: 'Cancel', value: 'cancel' }, { label: 'Correct this job', value: 'rename' }, { label: 'Start new job', value: 'new', cls: 'primary' }]
+      : [{ label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'new', cls: 'primary' }],
+    validate: (v, d) => (d.name.trim() ? null : 'Enter a job name'),
+  });
+  if (r.value === 'cancel') return;
+  const name = r.data.name.trim(), number = r.data.number.trim();
+  st.localJobs = allJobs();
+  if (r.value === 'rename') {
+    await renameJob(cur, name, number);
+  } else {
+    let job = st.localJobs.find(j => j.name.toLowerCase() === name.toLowerCase() && (j.number || '').toLowerCase() === number.toLowerCase());
+    if (!job) { job = { id: 'J' + Date.now().toString(36), name, number, created: new Date().toISOString() }; st.localJobs.push(job); }
+    st.jobId = job.id;
+  }
+  const cj = currentJob();
+  st.jobName = cj?.name || ''; st.jobNumber = cj?.number || '';
+  view.jobId = st.jobId; view.wc = '';
+  await saveSettings(); renderHome(); renderAdmin();
+  toast(r.value === 'rename' ? 'Job updated' : `Now on ${jobLabel(cj)}`);
+}
+
+async function editPastJob(job) {
+  if (!job) return;
+  const r = await modal({
+    title: 'Edit job',
+    html: `<div class="field"><label>Project number</label><input name="number" value="${esc(job.number || '')}"></div>
+      <div class="field"><label>Job name</label><input name="name" value="${esc(job.name)}"></div>`,
+    buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Make current job', value: 'current' }, { label: 'Save', value: 'save', cls: 'primary' }],
+    validate: (v, d) => (d.name.trim() ? null : 'Enter a job name'),
+  });
+  if (r.value === 'cancel') return;
+  await renameJob(job, r.data.name.trim(), r.data.number.trim());
+  if (r.value === 'current') S.settings.jobId = job.id;
+  const cj = currentJob();
+  S.settings.jobName = cj?.name || ''; S.settings.jobNumber = cj?.number || '';
+  await saveSettings(); renderHome(); renderAdmin(); toast('Saved');
+}
+
+/* ---------- edit / add sign-ins ---------- */
+async function editEntry(rec, preset = {}) {
+  const emps = S.employees.filter(e => e.active || (rec && e.id === rec.empId)).sort((a, b) => fullName(a).localeCompare(fullName(b)));
+  if (!rec && !emps.length) { toast('Register an employee first'); return; }
+  const pick = rec ? rec.empId : preset.empId;
+  const html = `
+    ${rec ? `<p style="margin-top:0;font-size:17px"><b>${esc(empById(rec.empId) ? fullName(empById(rec.empId)) : rec.empId)}</b> · ${esc(rec.empId)}</p>`
+      : `<div class="field"><label>Employee</label><select name="emp">${emps.map(e => `<option value="${esc(e.id)}" ${e.id === pick ? 'selected' : ''}>${esc(fullName(e))} (${esc(e.id)})</option>`).join('')}</select></div>`}
+    <div class="field"><label>Date</label><input type="date" name="date" value="${rec ? rec.date : preset.date || dKey(new Date())}"></div>
+    <div class="row">
+      <div class="field" style="flex:1"><label>Sign in</label><input type="time" name="tin" value="${rec ? hm(rec.in) : ''}"></div>
+      <div class="field" style="flex:1"><label>Sign out</label><input type="time" name="tout" value="${rec && rec.out ? hm(rec.out) : ''}"></div>
+    </div>
+    <p style="color:var(--muted);font-size:14px;margin:0">Leave sign out blank if the person is still on site.</p>`;
+  const buttons = [{ label: 'Cancel', value: 'cancel' }];
+  if (rec) buttons.push({ label: 'Delete', value: 'delete', cls: 'dark' });
+  buttons.push({ label: 'Save', value: 'save', cls: 'primary' });
+  const r = await modal({
+    title: rec ? 'Edit sign-in' : 'Add entry', html, buttons,
+    validate: (v, d) => {
+      if (v !== 'save') return null;
+      if (!d.date) return 'Choose a date';
+      if (!d.tin) return 'Enter a sign-in time';
+      if (d.tout && d.tout <= d.tin) return 'Sign-out must be after sign-in';
+      const empId = rec ? rec.empId : d.emp;
+      if (!d.tout && S.records.some(x => x.empId === empId && !x.out && (!rec || x.id !== rec.id))) return 'This person already has an open sign-in';
+      return null;
+    },
+  });
+  if (r.value === 'cancel') return;
+  if (r.value === 'delete') {
+    if (!(await confirmBox('Delete this sign-in?', 'This removes the record permanently.', 'Delete', 'dark'))) return;
+    S.records = S.records.filter(x => x.id !== rec.id); await DB.del('records', rec.id);
+    renderAdmin(); renderHome(); toast('Deleted'); return;
+  }
+  const d = r.data;
+  const inIso = new Date(`${d.date}T${d.tin}:00`).toISOString();
+  const outIso = d.tout ? new Date(`${d.date}T${d.tout}:00`).toISOString() : null;
+  if (rec) {
+    const before = { date: rec.date, in: rec.in, out: rec.out };
+    rec.date = d.date;
+    if (rec.in !== inIso) { rec.in = inIso; rec.inSrc = 'manual'; }
+    if (rec.out !== outIso) { rec.out = outIso; rec.outSrc = outIso ? 'manual' : null; }
+    rec.edits = rec.edits || [];
+    rec.edits.push({ at: new Date().toISOString(), from: before, to: { date: rec.date, in: rec.in, out: rec.out } });
+    await DB.put('records', rec);
+  } else {
+    const job = allJobs().find(j => j.id === view.jobId);
+    const nr = { id: uid(), empId: d.emp, jobId: job?.id || '', jobName: job?.name || '', jobNumber: job?.number || '',
+      date: d.date, in: inIso, out: outIso, inSrc: 'manual', outSrc: outIso ? 'manual' : null, edits: [] };
+    S.records.push(nr); await DB.put('records', nr);
+  }
+  view.wc = wcKey(d.date);
+  await autoSignOut();
+  renderAdmin(); renderHome(); toast('Saved');
+}
+
+function exportWeekCsv() {
+  const job = allJobs().find(j => j.id === view.jobId);
+  const recs = (jobGroups()[view.jobId] || []).filter(r => wcKey(r.date) === view.wc)
+    .sort((a, b) => (a.date === b.date ? a.in.localeCompare(b.in) : a.date.localeCompare(b.date)));
+  const cell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const uk = k => k.split('-').reverse().join('/');
+  const head = ['Week commencing', 'Date', 'Day', 'Project number', 'Job', 'Employee ID', 'First name', 'Last name', 'Sign in', 'Sign out', 'Sign in method', 'Sign out method', 'Edited'];
+  const lines = [head.join(',')].concat(recs.map(r => {
+    const e = empById(r.empId) || { first: '', last: '' };
+    return [uk(view.wc), uk(r.date), parseKey(r.date).toLocaleDateString('en-GB', { weekday: 'long' }), job?.number || '', job?.name || '', r.empId, e.first, e.last,
+      hm(r.in), r.out ? hm(r.out) : 'Still on site', METHOD[r.inSrc] || r.inSrc, r.out ? METHOD[r.outSrc] || r.outSrc : '', r.edits?.length ? 'Yes' : ''].map(cell).join(',');
+  }));
+  download(`${(job?.number || 'no-job').replace(/[^\w-]+/g, '_')}_wc_${view.wc}.csv`, '﻿' + lines.join('\r\n'), 'text/csv');
+}
+
+/* ---------- employees tab ---------- */
 function staffHTML() {
   const emps = [...S.employees].sort((a, b) => (a.active === b.active ? fullName(a).localeCompare(fullName(b)) : a.active ? -1 : 1));
   return `
@@ -944,6 +1152,7 @@ function staffHTML() {
     </table></div>` : '<div class="empty">No employees yet.</div>'}`;
 }
 
+/* ---------- settings tab ---------- */
 function settingsHTML() {
   const st = S.settings;
   return `
@@ -972,109 +1181,61 @@ function settingsHTML() {
     </div>
     <div class="bar-title">Security</div>
     <div class="setgrid">
-      <div class="setcard"><h3>Records PIN (optional)</h3><p>If set, a PIN is needed to open Records. Leave blank for no PIN.</p>
-        <input type="password" id="sPin" inputmode="numeric" value="${esc(st.adminPin)}" autocomplete="off"></div>
+      <div class="setcard"><h3>Admin passkey</h3><p>Needed to open Admin. If it's forgotten, the app's data has to be cleared from Safari, so keep a note of it somewhere safe.</p>
+        <button class="btn sm primary" id="sPinChange">Change passkey</button></div>
     </div>
     <div class="bar-title">Data</div>
     <div class="setgrid">
-      <div class="setcard"><h3>Backup</h3><p>All data is stored only on this iPad. Download a backup regularly. The backup contains face templates, so keep it secure.</p>
+      <div class="setcard"><h3>Backup</h3><p>Everything is stored only on this iPad. Download a backup regularly. It contains face templates, so keep it secure.</p>
         <div class="row"><button class="btn sm primary" id="sBackup">Download backup</button><label class="btn sm">Restore backup<input type="file" id="sRestore" accept=".json,application/json" class="vh"></label></div></div>
       <div class="setcard"><h3>Storage</h3><p id="sStore">Checking…</p></div>
-      <div class="setcard"><h3>Delete all data</h3><p>Removes every employee, face template and record from this iPad.</p>
+      <div class="setcard"><h3>Delete all data</h3><p>Removes every employee, face template, job and sign-in record from this iPad.</p>
         <button class="btn sm dark" id="sWipe">Delete everything</button></div>
     </div>`;
 }
 
 function bindAdmin() {
   const on = (sel, ev, fn) => { const el = $(sel); if (el) el.addEventListener(ev, fn); };
-  if (adminTab === 'records') {
-    on('#fEmp', 'change', e => { filt.emp = e.target.value; renderAdmin(); });
-    on('#fFrom', 'change', e => { filt.from = e.target.value; renderAdmin(); });
-    on('#fTo', 'change', e => { filt.to = e.target.value; renderAdmin(); });
-    on('#fWeek', 'click', () => { const s = weekStart(new Date()); filt.from = dKey(s); filt.to = dKey(new Date(s.getTime() + 6 * 864e5)); renderAdmin(); });
-    on('#fLastWeek', 'click', () => { const s = weekStart(new Date()); s.setDate(s.getDate() - 7); filt.from = dKey(s); const e = new Date(s); e.setDate(e.getDate() + 6); filt.to = dKey(e); renderAdmin(); });
-    on('#exportCsv', 'click', exportCsv);
-    on('#addManual', 'click', () => editRecord(null));
-    document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editRecord(S.records.find(r => r.id === b.dataset.edit)));
-  } else if (adminTab === 'staff') {
+  if (adminTab === 'staff') {
     on('#staffAdd', 'click', () => openAdd('admin'));
     document.querySelectorAll('[data-ename]').forEach(b => b.onclick = () => editName(empById(b.dataset.ename)));
     document.querySelectorAll('[data-reenrol]').forEach(b => b.onclick = () => openAdd('admin', empById(b.dataset.reenrol)));
     document.querySelectorAll('[data-deact]').forEach(b => b.onclick = () => deactivate(empById(b.dataset.deact)));
-  } else {
-    const st = S.settings;
-    const text = (id, key) => on(id, 'change', async e => { st[key] = e.target.value.trim(); await saveSettings(); renderHome(); toast('Saved'); });
-    text('#sCompany', 'company'); text('#sApp', 'appName');
-    on('#sPin', 'change', async e => { st.adminPin = e.target.value.trim(); await saveSettings(); toast(st.adminPin ? 'Records PIN set' : 'Records PIN removed'); });
-    const range = (id, key, fmt, extra) => {
-      on(id, 'input', e => { $(id + 'V').textContent = fmt(+e.target.value); });
-      on(id, 'change', async e => { st[key] = +e.target.value; extra?.(+e.target.value); await saveSettings(); });
-    };
-    range('#sThr', 'threshold', v => v.toFixed(2));
-    range('#sMar', 'margin', v => v.toFixed(2));
-    range('#sFrames', 'frames', v => String(v));
-    range('#sLiveMin', 'realMin', v => v.toFixed(2), v => { st.liveMin = v; });
-    const check = (id, key) => on(id, 'change', async e => { st[key] = e.target.checked; await saveSettings(); });
-    check('#sLive', 'liveness'); check('#sLearn', 'learn'); check('#sDebug', 'debug');
-    on('#sLogo', 'change', e => loadLogo(e.target.files[0]));
-    on('#sLogoClear', 'click', async () => { st.logo = null; await saveSettings(); renderHome(); renderAdmin(); });
-    on('#sBackup', 'click', downloadBackup);
-    on('#sRestore', 'change', e => restoreBackup(e.target.files[0]));
-    on('#sWipe', 'click', wipeAll);
-    showStorage();
+    return;
   }
+  const st = S.settings;
+  const text = (id, key) => on(id, 'change', async e => { st[key] = e.target.value.trim(); await saveSettings(); renderHome(); toast('Saved'); });
+  text('#sCompany', 'company'); text('#sApp', 'appName');
+  const range = (id, key, fmt, extra) => {
+    on(id, 'input', e => { $(id + 'V').textContent = fmt(+e.target.value); });
+    on(id, 'change', async e => { st[key] = +e.target.value; extra?.(+e.target.value); await saveSettings(); });
+  };
+  range('#sThr', 'threshold', v => v.toFixed(2));
+  range('#sMar', 'margin', v => v.toFixed(2));
+  range('#sFrames', 'frames', v => String(v));
+  range('#sLiveMin', 'realMin', v => v.toFixed(2), v => { st.liveMin = v; });
+  const check = (id, key) => on(id, 'change', async e => { st[key] = e.target.checked; await saveSettings(); });
+  check('#sLive', 'liveness'); check('#sLearn', 'learn'); check('#sDebug', 'debug');
+  on('#sPinChange', 'click', changePasskey);
+  on('#sLogo', 'change', e => loadLogo(e.target.files[0]));
+  on('#sLogoClear', 'click', async () => { st.logo = null; await saveSettings(); renderHome(); renderAdmin(); });
+  on('#sBackup', 'click', downloadBackup);
+  on('#sRestore', 'change', e => restoreBackup(e.target.files[0]));
+  on('#sWipe', 'click', wipeAll);
+  showStorage();
 }
 
-async function editRecord(rec) {
-  const emps = S.employees.filter(e => e.active || (rec && e.id === rec.empId)).sort((a, b) => fullName(a).localeCompare(fullName(b)));
-  if (!emps.length) { toast('Add an employee first'); return; }
-  const today = dKey(new Date());
-  const html = `
-    <div class="field"><label>Employee</label><select name="emp" ${rec ? 'disabled' : ''}>${emps.map(e => `<option value="${esc(e.id)}" ${rec && rec.empId === e.id ? 'selected' : ''}>${esc(fullName(e))} (${esc(e.id)})</option>`).join('')}</select></div>
-    <div class="field"><label>Date</label><input type="date" name="date" value="${rec ? rec.date : today}"></div>
-    <div class="row">
-      <div class="field" style="flex:1"><label>Sign in</label><input type="time" name="tin" value="${rec ? hm(rec.in) : ''}"></div>
-      <div class="field" style="flex:1"><label>Sign out</label><input type="time" name="tout" value="${rec && rec.out ? hm(rec.out) : ''}"></div>
-    </div>
-    <p style="color:var(--muted);font-size:14px;margin:0">Leave sign out blank if the person is still on site.</p>`;
-  const buttons = [{ label: 'Cancel', value: 'cancel' }];
-  if (rec) buttons.push({ label: 'Delete', value: 'delete', cls: 'dark' });
-  buttons.push({ label: 'Save', value: 'save', cls: 'primary' });
+async function changePasskey() {
   const r = await modal({
-    title: rec ? 'Edit record' : 'Add manual entry', html, buttons,
-    validate: (v, d) => {
-      if (v !== 'save') return null;
-      if (!d.date) return 'Choose a date';
-      if (!d.tin) return 'Enter a sign-in time';
-      if (d.tout && d.tout <= d.tin) return 'Sign-out must be after sign-in';
-      const empId = rec ? rec.empId : d.emp;
-      if (!d.tout && S.records.some(x => x.empId === empId && !x.out && (!rec || x.id !== rec.id))) return 'This person already has an open sign-in';
-      return null;
-    },
+    title: 'Change passkey',
+    html: `<div class="field"><label>Current passkey</label><input name="old" type="password" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label>New passkey</label><input name="p1" type="password" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label>Enter new passkey again</label><input name="p2" type="password" inputmode="numeric" autocomplete="off"></div>`,
+    buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'ok', cls: 'primary' }],
+    validate: (v, d) => (d.old !== S.settings.adminPin ? 'Current passkey is incorrect' : d.p1.length < 4 ? 'Use at least 4 characters' : d.p1 !== d.p2 ? 'The new passkeys don’t match' : null),
   });
-  if (r.value === 'cancel') return;
-  if (r.value === 'delete') {
-    if (!(await confirmBox('Delete this record?', 'This removes the sign-in record permanently.', 'Delete', 'dark'))) return;
-    S.records = S.records.filter(x => x.id !== rec.id); await DB.del('records', rec.id);
-    renderAdmin(); renderHome(); toast('Record deleted'); return;
-  }
-  const d = r.data;
-  const inIso = new Date(`${d.date}T${d.tin}:00`).toISOString();
-  const outIso = d.tout ? new Date(`${d.date}T${d.tout}:00`).toISOString() : null;
-  if (rec) {
-    const before = { date: rec.date, in: rec.in, out: rec.out };
-    rec.date = d.date;
-    if (rec.in !== inIso) { rec.in = inIso; rec.inSrc = 'manual'; }
-    if (rec.out !== outIso) { rec.out = outIso; rec.outSrc = outIso ? 'manual' : null; }
-    rec.edits = rec.edits || [];
-    rec.edits.push({ at: new Date().toISOString(), from: before, to: { date: rec.date, in: rec.in, out: rec.out } });
-    await DB.put('records', rec);
-  } else {
-    const nr = { id: uid(), empId: d.emp, date: d.date, in: inIso, out: outIso, inSrc: 'manual', outSrc: outIso ? 'manual' : null, edits: [] };
-    S.records.push(nr); await DB.put('records', nr);
-  }
-  await autoSignOut();
-  renderAdmin(); renderHome(); toast('Saved');
+  if (r.value !== 'ok') return;
+  S.settings.adminPin = r.data.p1; await saveSettings(); toast('Passkey changed');
 }
 
 async function editName(emp) {
@@ -1096,20 +1257,6 @@ async function deactivate(emp) {
   const open = openRecord(emp.id);
   if (open) { open.out = new Date().toISOString(); open.outSrc = 'manual'; await DB.put('records', open); }
   renderAdmin(); renderHome(); toast('Deactivated');
-}
-
-function csvCell(v) { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
-const METHOD = { face: 'Face', manual: 'Manual', auto: 'Auto (23:59)' };
-function exportCsv() {
-  const rows = filteredRecords().slice().sort((a, b) => (a.date === b.date ? a.in.localeCompare(b.in) : a.date.localeCompare(b.date)));
-  const head = ['Date', 'Day', 'Employee ID', 'First name', 'Last name', 'Sign in', 'Sign out', 'Sign in method', 'Sign out method', 'Edited'];
-  const lines = [head.join(',')];
-  for (const r of rows) {
-    const e = empById(r.empId) || { first: '', last: '' };
-    const day = parseKey(r.date).toLocaleDateString('en-GB', { weekday: 'long' });
-    lines.push([r.date.split('-').reverse().join('/'), day, r.empId, e.first, e.last, hm(r.in), r.out ? hm(r.out) : '', METHOD[r.inSrc] || r.inSrc, r.out ? METHOD[r.outSrc] || r.outSrc : 'Still on site', r.edits?.length ? 'Yes' : ''].map(csvCell).join(','));
-  }
-  download(`sign-in-records_${filt.from || 'start'}_to_${filt.to || 'end'}.csv`, '\ufeff' + lines.join('\r\n'), 'text/csv');
 }
 
 function download(name, content, type) {
@@ -1165,6 +1312,7 @@ async function wipeAll() {
   if (r.value !== 'ok') return;
   await DB.clear('employees'); await DB.clear('records');
   S.employees = []; S.records = [];
+  Object.assign(S.settings, { localJobs: [], jobId: '', jobName: '', jobNumber: '' }); await saveSettings();
   renderHome(); renderAdmin(); toast('All data deleted');
 }
 
@@ -1217,6 +1365,7 @@ document.addEventListener('visibilitychange', () => {
   } catch (e) {
     $('#engineStatus').textContent = 'Storage unavailable — records can’t be saved in this browser mode.';
   }
+  if (!S.settings.deviceId) { S.settings.deviceId = 'iPad-' + uid().slice(-6); try { await saveSettings(); } catch {} }
   try { await navigator.storage?.persist?.(); } catch {}
   renderHome(); tickClock();
   setInterval(tickClock, 1000);
