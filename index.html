@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sign In">
-<meta name="theme-color" content="#1F5A2D">
+<meta name="theme-color" content="#FFFFFF">
 <title>CGC Site Sign In</title>
 <style>
 :root{
@@ -15,10 +15,12 @@
   --border:#CBD3CD; --blue:#2E6DA4; --ink:#1A1A1A; --muted:#5F6B63;
   --bg:#F6F8F6; --white:#FFFFFF; --charcoal:#2B2F2C;
   --radius:18px;
+  --ease-out:cubic-bezier(0.23,1,0.32,1);
+  --ease-in-out:cubic-bezier(0.77,0,0.175,1);
   font-family:-apple-system,"Segoe UI",Arial,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:none}
+html,body{margin:0;height:100%;background:var(--white);color:var(--ink);overscroll-behavior:none}
 body{-webkit-user-select:none;user-select:none}
 input,select,textarea{-webkit-user-select:text;user-select:text;font:inherit}
 button{font:inherit;cursor:pointer;border:0}
@@ -42,8 +44,8 @@ button{font:inherit;cursor:pointer;border:0}
 .date{font-size:clamp(18px,2.4vw,26px);color:var(--muted);margin-top:8px}
 .bigbtns{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:8px;max-height:52vh}
 .big{border-radius:28px;font-size:clamp(34px,5.5vw,60px);font-weight:800;letter-spacing:2px;color:var(--white);
-  box-shadow:0 8px 0 rgba(0,0,0,.18);transition:transform .08s ease, box-shadow .08s ease;min-height:180px}
-.big:active{transform:translateY(6px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+  box-shadow:0 10px 30px rgba(0,0,0,.14);transition:transform 160ms var(--ease-out);min-height:180px}
+.big:active{transform:scale(.97)}
 .big.in{background:var(--green)}
 .big.out{background:var(--charcoal)}
 .big small{display:block;font-size:18px;font-weight:500;letter-spacing:0;opacity:.85;margin-top:8px}
@@ -58,23 +60,23 @@ button{font:inherit;cursor:pointer;border:0}
 }
 
 /* ---------- Scan ---------- */
-#scan{background:#111;color:var(--white)}
+#scan{background:var(--white);color:var(--ink)}
 .scanhead{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 12px}
 .scantitle{font-size:24px;font-weight:700}
-.ghost{background:rgba(255,255,255,.12);color:var(--white);border-radius:12px;padding:12px 22px;font-size:18px;font-weight:600}
+.ghost{background:var(--tint);color:var(--ink);border:2px solid var(--border);border-radius:12px;padding:12px 22px;font-size:18px;font-weight:600}
 .camwrap{position:relative;flex:1;border-radius:24px;overflow:hidden;background:#000}
 #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
 .oval{position:absolute;left:50%;top:48%;width:min(46vh,62vw);aspect-ratio:3/4;transform:translate(-50%,-50%);
-  border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.5);border:5px solid rgba(255,255,255,.75);transition:border-color .2s}
+  border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.5);border:5px solid rgba(255,255,255,.75);transition:border-color 200ms ease}
 .oval.good{border-color:#7FBF8E}
-.bar{height:8px;background:rgba(255,255,255,.15);border-radius:99px;margin:14px 6px 0;overflow:hidden}
-.bar>div{height:100%;width:0;background:#7FBF8E;transition:width .15s}
+.bar{height:8px;background:var(--tint2);border-radius:99px;margin:14px 6px 0;overflow:hidden}
+.bar>div{height:100%;width:100%;background:var(--green);transform:scaleX(0);transform-origin:left;transition:transform 200ms var(--ease-out)}
 .scanmsg{text-align:center;font-size:clamp(24px,3.4vw,34px);font-weight:700;margin-top:14px;min-height:42px}
-.scanhint{text-align:center;font-size:18px;opacity:.8;min-height:26px;margin-top:4px}
+.scanhint{text-align:center;font-size:18px;color:var(--muted);min-height:26px;margin-top:4px}
 .dots{display:flex;justify-content:center;gap:10px;margin-top:10px}
-.dots span{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.25)}
-.dots span.done{background:#7FBF8E}
-.dots span.now{background:var(--white)}
+.dots span{width:14px;height:14px;border-radius:50%;background:var(--tint2);transition:transform 200ms var(--ease-out),background-color 200ms ease}
+.dots span.done{background:var(--green)}
+.dots span.now{background:var(--charcoal);transform:scale(1.3)}
 .debug{font:13px ui-monospace,Menlo,monospace;opacity:.75;text-align:center;margin-top:6px;white-space:pre-wrap}
 
 /* ---------- Message ---------- */
@@ -107,7 +109,7 @@ button{font:inherit;cursor:pointer;border:0}
 .err{color:var(--ink);font-weight:700;min-height:22px;margin-top:6px}
 
 /* ---------- Admin ---------- */
-#admin{background:var(--bg);padding-top:max(10px,env(safe-area-inset-top))}
+#admin{background:var(--white);padding-top:max(10px,env(safe-area-inset-top))}
 .adminhead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 4px 10px;border-bottom:2px solid var(--green);flex-wrap:wrap}
 .adminhead h1{margin:0;font-size:24px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
@@ -148,12 +150,48 @@ td.cell{cursor:pointer;min-width:110px}
 .valline{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:700}
 
 /* ---------- Modal ---------- */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
-.modalcard{background:var(--white);border-radius:18px;width:100%;max-width:560px;padding:22px;max-height:90vh;overflow:auto}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;
+  opacity:0;transition:opacity 150ms var(--ease-out)}
+.modal.show{opacity:1;transition-duration:200ms}
+.modalcard{background:var(--white);border-radius:18px;width:100%;max-width:560px;padding:22px;max-height:90vh;overflow:auto;
+  opacity:0;transform:scale(.96);transition:transform 150ms var(--ease-out),opacity 150ms var(--ease-out)}
+.modal.show .modalcard{opacity:1;transform:none;transition-duration:220ms}
 .modalcard h2{margin:0 0 12px;font-size:22px}
 .modalcard .field input,.modalcard .field select{font-size:18px;padding:12px 14px}
 #modalBtns{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
-.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:var(--charcoal);color:var(--white);padding:14px 22px;border-radius:12px;font-size:17px;z-index:60}
+.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:var(--charcoal);color:var(--white);padding:14px 22px;border-radius:12px;font-size:17px;z-index:60;
+  animation:toastIn 240ms var(--ease-out);transition:opacity 150ms ease-out}
+.toast.out{opacity:0}
+
+/* ---------- Motion ---------- */
+/* buttons: subtle press */
+.btn,.add,.adminbtn,.ghost,.tab,.msgbtns button{transition:transform 140ms var(--ease-out),background-color 150ms ease,color 150ms ease,border-color 150ms ease}
+.btn:active,.add:active,.adminbtn:active,.ghost:active,.tab:active,.msgbtns button:active{transform:scale(.97)}
+/* screens */
+.screen.active{animation:fadeIn 200ms var(--ease-out)}
+#scan.active .camwrap{animation:riseIn 260ms var(--ease-out)}
+#add.active .formcard,#admin.active .adminbody{animation:riseIn 240ms var(--ease-out)}
+/* message card replays on every message */
+.msgcard.enter{animation:riseIn 260ms var(--ease-out)}
+.msgcard.enter .msgicon{animation:popIn 280ms var(--ease-out)}
+.msgicon svg{width:64px;height:64px}
+.msgicon svg path{stroke-dasharray:40;stroke-dashoffset:40;animation:draw 320ms var(--ease-out) 120ms forwards}
+.msgtimer{width:160px;height:4px;border-radius:99px;background:var(--tint2);margin:32px auto 0;overflow:hidden}
+.msgtimer>div{height:100%;background:var(--green);transform-origin:left}
+/* first launch only */
+body.intro .big{animation:riseIn 360ms var(--ease-out) both}
+body.intro .big.out{animation-delay:60ms}
+body.intro .clockwrap{animation:fadeIn 360ms var(--ease-out) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes riseIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes popIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){
+  #scan.active .camwrap,#add.active .formcard,#admin.active .adminbody,.msgcard.enter,.msgcard.enter .msgicon,body.intro .big,.toast{animation-name:fadeIn}
+  .big:active,.btn:active,.add:active,.adminbtn:active,.ghost:active,.tab:active,.msgbtns button:active,.modalcard,.modal.show .modalcard{transform:none}
+  .dots span.now{transform:none}
+}
 </style>
 </head>
 <body>
@@ -210,6 +248,7 @@ td.cell{cursor:pointer;min-width:110px}
     <div id="msgTitle" class="msgtitle"></div>
     <div id="msgText" class="msgtext"></div>
     <div id="msgBtns" class="msgbtns"></div>
+    <div class="msgtimer hidden"><div id="msgTimer"></div></div>
   </div>
 </section>
 
@@ -326,7 +365,8 @@ const titleCase = s => s.trim().replace(/\s+/g, ' ').replace(/(^|[\s'-])(\p{L})/
 
 function toast(text, ms = 2500) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
-  document.body.appendChild(t); setTimeout(() => t.remove(), ms);
+  document.body.appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 160); }, ms);
 }
 
 /* ---------------- storage (IndexedDB) ---------------- */
@@ -429,8 +469,10 @@ let msgResolve = null, msgTimer = null;
 function showMsg({ icon = '', ok = false, title = '', text = '', buttons = [], timeout = 0, timeoutValue = 'timeout' }) {
   return new Promise(res => {
     clearTimeout(msgTimer);
-    $('#msgIcon').textContent = icon;
-    $('#msgIcon').className = 'msgicon' + (ok ? ' ok' : '');
+    const ic = $('#msgIcon');
+    ic.className = 'msgicon' + (ok ? ' ok' : '');
+    if (ok) ic.innerHTML = '<svg viewBox="0 0 52 52" aria-hidden="true"><path d="M14 27l8 8 16-17" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    else ic.textContent = icon;
     $('#msgTitle').textContent = title;
     $('#msgText').textContent = text;
     const bw = $('#msgBtns'); bw.innerHTML = '';
@@ -443,11 +485,28 @@ function showMsg({ icon = '', ok = false, title = '', text = '', buttons = [], t
     });
     msgResolve = done;
     showScreen('msg');
+    const card = $('#msg .msgcard');
+    card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter');
+    const tb = $('#msgTimer');
+    tb.getAnimations?.().forEach(a => a.cancel());
+    if (timeout && !buttons.length && tb.animate) {
+      tb.parentElement.classList.remove('hidden');
+      tb.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: timeout, easing: 'linear', fill: 'forwards' });
+    } else tb.parentElement.classList.add('hidden');
     if (timeout) msgTimer = setTimeout(() => done(timeoutValue), timeout);
   });
 }
 
 /* ---------------- modal ---------------- */
+let modalHideTimer = null;
+function openModal() {
+  const m = $('#modal'); clearTimeout(modalHideTimer);
+  m.classList.remove('hidden'); void m.offsetWidth; m.classList.add('show');
+}
+function closeModal() {
+  const m = $('#modal'); m.classList.remove('show');
+  modalHideTimer = setTimeout(() => m.classList.add('hidden'), 160);
+}
 function modal({ title, html = '', buttons = [{ label: 'OK', value: 'ok', cls: 'primary' }], validate }) {
   return new Promise(res => {
     const m = $('#modal');
@@ -465,11 +524,11 @@ function modal({ title, html = '', buttons = [{ label: 'OK', value: 'ok', cls: '
           const err = validate(b.value, data);
           if (err) { $('#modalErr').textContent = err; return; }
         }
-        m.classList.add('hidden'); res({ value: b.value, data });
+        closeModal(); res({ value: b.value, data });
       };
       bw.appendChild(el);
     });
-    m.classList.remove('hidden');
+    openModal();
   });
 }
 const confirmBox = async (title, text, yes = 'Yes', cls = 'primary') =>
@@ -561,7 +620,7 @@ function assess(f) {
 let scanCtl = null;
 const scanMsg = t => { $('#scanMsg').textContent = t; };
 const scanHint = t => { $('#scanHint').textContent = t || ''; };
-const scanProgress = p => { $('#scanBar').style.width = Math.round(Math.max(0, Math.min(1, p)) * 100) + '%'; $('#oval').classList.toggle('good', p > 0); };
+const scanProgress = p => { $('#scanBar').style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`; $('#oval').classList.toggle('good', p > 0); };
 const dbg = t => { const d = $('#debug'); d.classList.toggle('hidden', !S.settings.debug); if (S.settings.debug) d.textContent = t; };
 
 async function prepareScan(title, ctl) {
@@ -1367,6 +1426,7 @@ document.addEventListener('visibilitychange', () => {
   }
   if (!S.settings.deviceId) { S.settings.deviceId = 'iPad-' + uid().slice(-6); try { await saveSettings(); } catch {} }
   try { await navigator.storage?.persist?.(); } catch {}
+  document.body.classList.add('intro'); setTimeout(() => document.body.classList.remove('intro'), 900);
   renderHome(); tickClock();
   setInterval(tickClock, 1000);
   setInterval(autoSignOut, 30000);
